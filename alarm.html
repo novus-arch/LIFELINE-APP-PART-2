@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alarm - LIFELINE</title>
+    <link rel="stylesheet" href="alarm.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="brand-name">L.I.F.E.L.I.N.E.</div>
+        <div class="user-controls">
+            <span id="welcomeMsg" style="font-size: 14px; opacity: 0.9;">HELLO STUDENT!</span>
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="main-content">
+        <div class="alarm-container">
+            <h1>Alarm System</h1>
+            <button id="backBtn" onclick="window.location.href='/dashboard.html'">Back to Dashboard</button>
+            
+            <div id="alarmActionsSection" style="margin-top: 20px;">
+                
+                <div class="status-block">
+                    <h2>Current Status</h2>
+                    <div id="alarmInfo">Loading system status...</div>
+                </div>
+
+                <div id="messageSection" style="margin-top: 20px; display: none;">
+                    <label style="display:block; margin-bottom:5px; font-weight:600;">Update Admin:</label>
+                    <div style="display:flex; gap:10px;">
+                        <input type="text" id="messageInput" placeholder="Describe the situation..." style="flex:1; padding: 10px; border:1px solid #ccc; border-radius:4px;">
+                        <button id="sendMessageBtn" style="padding: 10px 20px; background: #333; color: white;">Send</button>
+                    </div>
+                </div>
+
+                <div class="action-btn-group" id="actionButtons" style="display: none;">
+                    <button id="emergencyBtn">EMERGENCY BUTTON</button>
+                    <button id="falseAlarmBtn">FALSE ALARM</button>
+                </div>
+
+                <div id="alarmError" style="color: red; margin-top: 15px; text-align: center; font-weight: bold;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="emergencyModal" class="modal-overlay">
+        <span class="close-modal-btn" onclick="closeModal()">&times;</span>
+        
+        <div class="modal-content">
+            <div class="type-card type-1" onclick="sendEmergency('Type 1')">
+                <div class="card-header">
+                    <div class="card-icon"><i class="fas fa-heart-pulse"></i></div>
+                    <div class="card-title">TYPE 1</div>
+                </div>
+                <div class="card-body">
+                    <p class="card-info">ID: <span class="student-id-display">--</span></p>
+                    <div class="card-desc">STUDENT REPORTED DIZZINESS (MINOR)</div>
+                    <button class="card-btn">SUBMIT</button>
+                </div>
+            </div>
+
+            <div class="type-card type-2" onclick="sendEmergency('Type 2')">
+                <div class="card-header">
+                    <div class="card-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+                        </svg>
+                    </div>
+                    <div class="card-title">TYPE 2</div>
+                </div>
+                <div class="card-body">
+                    <p class="card-info">ID: <span class="student-id-display">--</span></p>
+                    <div class="card-desc">DEEP CUT / BLEEDING (MODERATE)</div>
+                    <button class="card-btn">SUBMIT</button>
+                </div>
+            </div>
+
+            <div class="type-card type-3" onclick="sendEmergency('Type 3')">
+                <div class="card-header">
+                    <div class="card-icon"><i class="fas fa-tint"></i></div>
+                    <div class="card-title">TYPE 3</div>
+                </div>
+                <div class="card-body">
+                    <p class="card-info">ID: <span class="student-id-display">--</span></p>
+                    <div class="card-desc">UNCONSCIOUS / FAINTED (CRITICAL)</div>
+                    <button class="card-btn">SUBMIT</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        const schoolId = urlParams.get('schoolId');
+        let currentAlarmId = urlParams.get('alarmId');
+
+        // Fill Student ID in the modal cards
+        document.querySelectorAll('.student-id-display').forEach(el => el.textContent = schoolId || 'Unknown');
+
+        // Logout Logic
+        document.getElementById('logoutBtn').addEventListener('click', () => {
+            localStorage.removeItem('username');
+            localStorage.removeItem('authority');
+            window.location.href = '/index.html';
+        });
+
+        // Setup Page
+        if (!schoolId) {
+            document.getElementById('alarmError').textContent = 'No school ID provided';
+            document.getElementById('alarmActionsSection').style.display = 'none';
+        } else {
+            window.addEventListener('load', async () => {
+                await createOrGetAlarm();
+            });
+        }
+
+        async function createOrGetAlarm() {
+            try {
+                const response = await fetch(`/alarm/${schoolId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        emergency: false,
+                        message: { type: 'Initializing', additionalInfo: '' },
+                        status: 'ongoing'
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentAlarmId = data.alarm.id;
+                    displayAlarmInfo(data.alarm);
+                    document.getElementById('alarmActionsSection').style.display = 'block';
+                    document.getElementById('messageSection').style.display = 'block';
+                    document.getElementById('actionButtons').style.display = 'flex';
+                } else {
+                    document.getElementById('alarmError').textContent = data.message || 'Failed to init alarm';
+                }
+            } catch (err) {
+                document.getElementById('alarmError').textContent = 'Connection Error: ' + err.message;
+            }
+        }
+
+        function displayAlarmInfo(alarm) {
+            let html = `<p><strong>Alarm ID:</strong> ${alarm.id}</p>`;
+            html += `<p><strong>Your ID:</strong> ${alarm.schoolId}</p>`;
+            
+            let statusColor = alarm.emergency ? 'red' : 'green';
+            let statusText = alarm.emergency ? 'EMERGENCY ACTIVE' : 'Monitoring (Safe)';
+            
+            html += `<p><strong>Status:</strong> <span style="color:${statusColor}; font-weight:bold">${statusText}</span></p>`;
+            
+            if(alarm.message && alarm.message.type) {
+                 html += `<p><strong>Last Report:</strong> ${alarm.message.type}</p>`;
+            }
+
+            document.getElementById('alarmInfo').innerHTML = html;
+        }
+
+        // --- MODAL LOGIC ---
+        const modal = document.getElementById('emergencyModal');
+
+        document.getElementById('emergencyBtn').addEventListener('click', () => {
+             if (!currentAlarmId) {
+                document.getElementById('alarmError').textContent = 'System initializing... please wait.';
+                return;
+            }
+            modal.style.display = 'flex';
+        });
+
+        function closeModal() {
+            modal.style.display = 'none';
+        }
+
+        // --- SEND EMERGENCY LOGIC ---
+        async function sendEmergency(type) {
+            closeModal();
+            
+            try {
+                const response = await fetch(`/alarm/${schoolId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        emergency: true, 
+                        status: 'ongoing',
+                        message: { 
+                            type: type, 
+                            additionalInfo: 'Emergency Button Pressed' 
+                        }
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('alarmError').textContent = `${type} Alert Sent!`;
+                    document.getElementById('alarmError').style.color = 'red';
+                    displayAlarmInfo(data.alarm);
+                } else {
+                    document.getElementById('alarmError').textContent = 'Failed to send alert.';
+                }
+            } catch (err) {
+                document.getElementById('alarmError').textContent = 'Error sending alert: ' + err.message;
+            }
+        }
+
+        // --- SEND MESSAGE LOGIC ---
+        document.getElementById('sendMessageBtn').addEventListener('click', async () => {
+            const msg = document.getElementById('messageInput').value;
+            if(!msg) return;
+
+             try {
+                const response = await fetch(`/alarm/${schoolId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        status: 'ongoing',
+                        message: { type: 'Update', additionalInfo: msg }
+                    })
+                });
+                const data = await response.json();
+                if(data.success) {
+                    document.getElementById('messageInput').value = '';
+                    displayAlarmInfo(data.alarm);
+                }
+            } catch(e) { console.error(e); }
+        });
+
+        // --- FALSE ALARM LOGIC ---
+        document.getElementById('falseAlarmBtn').addEventListener('click', async () => {
+             if (!currentAlarmId) return;
+             try {
+                const response = await fetch(`/alarm/${currentAlarmId}/false`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ authority: 'STUDENT' })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    document.getElementById('alarmError').textContent = 'False Alarm Reported. Redirecting...';
+                    document.getElementById('alarmError').style.color = 'green';
+                    setTimeout(() => { window.location.href = '/dashboard.html'; }, 1000);
+                }
+             } catch (err) { console.error(err); }
+        });
+    </script>
+</body>
+</html>

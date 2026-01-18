@@ -1,0 +1,23 @@
+[
+  {
+    "timestamp": "2026-01-16T08:30:00Z",
+    "studentID": "2024-01-00001",
+    "levelOfEmergency": 1,
+    "status": "Resolved",
+    "remarks": "Student recovered after using personal inhaler."
+  },
+  {
+    "timestamp": "2026-01-16T13:45:00Z",
+    "studentID": "2024-01-00002",
+    "levelOfEmergency": 2,
+    "status": "Pending",
+    "remarks": "Intense dizziness reported; awaiting nurse arrival."
+  },
+  {
+    "timestamp": "2026-01-16T15:20:00Z",
+    "studentID": "2024-01-00001",
+    "levelOfEmergency": 3,
+    "status": "Pending",
+    "remarks": "Severe respiratory distress. CDRRMO and Ambulance contacted."
+  }
+]

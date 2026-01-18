@@ -1,0 +1,39 @@
+[
+  {
+    "studentID": "2024-01-00001",
+    "name": "Juan Dela Cruz",
+    "birthday": "2008-05-15",
+    "age": 17,
+    "height": 170,
+    "weight": 65,
+    "bmi": 22.5,
+    "medicalHistory": [
+      {
+        "date": "2025-08-12T10:30:00Z",
+        "condition": "Asthma Attack",
+        "description": "Triggered by dust during classroom cleaning. Administered inhaler."
+      },
+      {
+        "date": "2025-11-20T14:15:00Z",
+        "condition": "Mild Fever",
+        "description": "Body temp 38.2°C. Advised to rest and sent home."
+      }
+    ]
+  },
+  {
+    "studentID": "2024-01-00002",
+    "name": "Maria Clara",
+    "birthday": "2009-12-01",
+    "age": 16,
+    "height": 158,
+    "weight": 50,
+    "bmi": 20.0,
+    "medicalHistory": [
+      {
+        "date": "2026-01-05T09:00:00Z",
+        "condition": "Low Blood Pressure",
+        "description": "Fainted during morning assembly. Stabilized in the clinic."
+      }
+    ]
+  }
+]

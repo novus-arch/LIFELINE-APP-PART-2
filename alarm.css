@@ -1,0 +1,347 @@
+/* GLOBAL RESET */
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f4f6f9;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+/* NAVBAR */
+.navbar {
+    background-color: #800000;
+    color: white;
+    padding: 15px 30px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+    width: 100%;
+}
+
+.brand-name {
+    font-size: 24px;
+    font-weight: bold;
+    letter-spacing: 2px;
+}
+
+.user-controls {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+}
+
+#logoutBtn {
+    background-color: transparent;
+    border: 1px solid rgba(255,255,255,0.5);
+    color: white;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+
+#logoutBtn:hover {
+    background-color: rgba(255,255,255,0.1);
+    border-color: white;
+}
+
+/* MAIN CONTENT */
+.main-content {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.alarm-container {
+    background: white;
+    width: 100%;
+    max-width: 700px;
+    padding: 40px;
+    border-radius: 12px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+}
+
+h1 {
+    color: #333;
+    margin-bottom: 20px;
+    font-size: 28px;
+}
+
+/* BUTTONS */
+button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    font-weight: 600;
+    transition: transform 0.2s;
+}
+
+button:active { transform: scale(0.98); }
+
+#backBtn {
+    background-color: #eee;
+    color: #333;
+    padding: 8px 16px;
+    margin-bottom: 20px;
+}
+
+.action-btn-group {
+    display: flex;
+    gap: 15px;
+    margin-top: 20px;
+}
+
+#emergencyBtn {
+    flex: 1;
+    background-color: #d32f2f;
+    color: white;
+    padding: 15px;
+    font-size: 16px;
+    box-shadow: 0 4px 6px rgba(211, 47, 47, 0.3);
+}
+
+#falseAlarmBtn {
+    flex: 1;
+    background-color: #f57c00;
+    color: white;
+    padding: 15px;
+    font-size: 16px;
+    box-shadow: 0 4px 6px rgba(245, 124, 0, 0.3);
+}
+
+/* GRAY STATUS BLOCK */
+.status-block {
+    background-color: #f0f0f0;
+    border-left: 6px solid #888;
+    padding: 20px;
+    border-radius: 4px;
+    margin-bottom: 25px;
+    color: #333;
+}
+
+.status-block h2 {
+    font-size: 18px;
+    margin-bottom: 10px;
+    color: #444;
+}
+
+/* MODAL / POPUP */
+.modal-overlay {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+.modal-content {
+    display: flex;
+    gap: 30px;
+    width: 100%;
+    max-width: 1000px;
+    justify-content: center;
+    flex-wrap: wrap;
+    /* FIX: This makes all cards equal height */
+    align-items: stretch; 
+}
+
+.close-modal-btn {
+    position: absolute;
+    top: 20px;
+    right: 30px;
+    color: white;
+    font-size: 40px;
+    cursor: pointer;
+    line-height: 1;
+}
+
+/* TYPE CARD BASE STYLES */
+.type-card {
+    background: white;
+    border-radius: 15px;
+    overflow: visible; /* Required for the glow to show outside the box */
+    cursor: pointer;
+    text-align: center;
+    width: 300px;
+    position: relative;
+    
+    /* FIX: Allows the card to stretch and arrange internal content */
+    display: flex;
+    flex-direction: column;
+    
+    will-change: box-shadow;
+}
+
+.card-header {
+    padding: 40px 20px;
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-top-left-radius: 15px;
+    border-top-right-radius: 15px;
+}
+
+.card-icon {
+    font-size: 50px;
+    margin-bottom: 15px;
+    line-height: 1;
+    width: 80px;
+    height: 80px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.card-title {
+    font-size: 32px;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.card-body {
+    padding: 25px;
+    background: white;
+    border-bottom-left-radius: 15px;
+    border-bottom-right-radius: 15px;
+    
+    /* FIX: Fills remaining space and pushes button to bottom */
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.card-info {
+    font-size: 14px;
+    color: #555;
+    margin-bottom: 10px;
+}
+
+.card-desc {
+    font-size: 14px;
+    font-weight: bold;
+    margin-bottom: 20px;
+    text-transform: uppercase;
+}
+
+.card-btn {
+    width: 100%;
+    padding: 12px;
+    font-weight: bold;
+    border-radius: 25px;
+    border: none;
+    font-size: 14px;
+}
+
+/* --------------------------------------------------------- */
+/* TYPE 2 ICON FIX (For the SVG)                             */
+/* --------------------------------------------------------- */
+
+/* Remove any background images if they existed previously */
+.type-2 .card-icon {
+    background-image: none !important;
+}
+
+/* Style the SVG inside the card-icon div */
+.type-2 .card-icon svg {
+    display: block;
+    width: 60%;
+    height: 60%;
+    stroke: white;
+    stroke-width: 3;
+    filter: drop-shadow(0 2px 3px rgba(0,0,0,0.2));
+}
+
+/* --------------------------------------------------------- */
+/* OUTER BORDER PULSE ANIMATIONS ONLY                        */
+/* --------------------------------------------------------- */
+
+/* LEVEL 1: SLOW - Yellow */
+@keyframes pulse-yellow-border {
+    0% {
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+    }
+    50% {
+        /* Opacity set to 1 (Solid) */
+        box-shadow: 0 0 10px 10px rgba(255, 215, 0, 1);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+    }
+}
+
+.type-1 {
+    background-color: #FFD700;
+    animation: pulse-yellow-border 1s infinite ease-in-out;
+    border: 1px solid #FFD700;
+}
+.type-1 .card-header { background-color: #FFD700; }
+.type-1 .card-desc { color: #FFD700; }
+.type-1 .card-btn { background-color: #FFD700; color: #333; }
+
+
+/* LEVEL 2: MEDIUM - Orange */
+@keyframes pulse-orange-border {
+    0% {
+        box-shadow: 0 0 0 0 rgba(230, 81, 0, 0);
+    }
+    50% {
+        /* Opacity set to 1 (Solid) */
+        box-shadow: 0 0 15px 12px rgba(255, 109, 0, 1);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(230, 81, 0, 0);
+    }
+}
+
+.type-2 {
+    background-color: #E65100;
+    animation: pulse-orange-border 1s infinite ease-in-out;
+    border: 1px solid #E65100;
+}
+.type-2 .card-header { background-color: #E65100; }
+.type-2 .card-desc { color: #E65100; }
+.type-2 .card-btn { background-color: #E65100; color: white; }
+
+
+/* LEVEL 3: EXTREME - Red */
+@keyframes pulse-red-border {
+    0% {
+        box-shadow: 0 0 0 0 rgba(183, 28, 28, 0);
+    }
+    50% {
+        /* Opacity set to 1 (Solid) */
+        box-shadow: 0 0 20px 15px rgba(255, 23, 68, 1);
+    }
+    100% {
+        box-shadow: 0 0 0 0 rgba(183, 28, 28, 0);
+    }
+}
+
+.type-3 {
+    background-color: #B71C1C;
+    animation: pulse-red-border 1s infinite ease-in-out;
+    border: 1px solid #B71C1C;
+}
+.type-3 .card-header { background-color: #B71C1C; }
+.type-3 .card-desc { color: #B71C1C; }
+.type-3 .card-btn { background-color: #B71C1C; color: white; }
