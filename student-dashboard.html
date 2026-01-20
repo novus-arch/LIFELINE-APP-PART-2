@@ -37,7 +37,7 @@
                     localStorage.setItem('schoolId', userData.user.schoolId);
                 }
                 
-                const studentResponse = await fetch(`/dashboard/student/${username}`);
+                const studentResponse = await fetch(`/dashboard/student/${userData.user.schoolId}`);
                 const data = await studentResponse.json();
                 if (data.success) {
                     // Check if profile is complete (all fields must have non-empty values)
@@ -149,7 +149,6 @@
                 html += '<div class="form-card" style="max-width: 500px; text-align: center;">';
                 html += '<p style="margin-bottom: 15px;">Share this QR code for quick access to your alarm:</p>';
                 html += '<div id="studentQRContainer" style="margin: 20px 0; min-height: 300px;"></div>';
-                html += '<button type="button" class="btn-create" onclick="downloadStudentQR()">Download QR Code</button>';
                 html += '</div>';
 
                 // Password Change Form
