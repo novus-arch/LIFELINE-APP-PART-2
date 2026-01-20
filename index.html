@@ -7,27 +7,29 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <div class="login-container">
-        <h1>LIFELINE</h1>
-        <p class="subtitle">School System - Login</p>
-        
-        <form id="loginForm">
-            <div>
-                <label for="username">Username</label>
-                <input type="text" id="username" name="username" placeholder="Enter ID" required>
-            </div>
-            <div>
-                <label for="password">Password</label>
-                <input type="password" id="password" name="password" placeholder="Enter Password" required>
-            </div>
-            <button type="submit">LOGIN</button>
-            <div id="loginError"></div>
-        </form>
+   <div class="login-container">
+    <img src="logo.png" alt="Lifeline Logo" class="logo-img">
 
-        <div class="footer-text">
-            Life-saving Integrated First-aid and Emergency Link
+    <h1>LIFELINE</h1>
+    
+    <p class="subtitle">Fast Action. Safe Education.</p>
+
+    <form id="loginForm">
+        <div>
+            <label for="username">School ID</label>
+            <input type="text" id="username" name="username" placeholder="Enter your ID" required>
         </div>
-    </div>
+        <div>
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" placeholder="Enter your password" required>
+        </div>
+        <button type="submit">LOGIN</button>
+    </form>
+    
+    <div id="loginError"></div>
+    
+    <p class="footer-text">Life-saving Integrated First-aid and Emergency Link &copy; 2026</p>
+</div>
 
     <script>
         document.getElementById('loginForm').addEventListener('submit', async (e) => {

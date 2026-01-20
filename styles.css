@@ -7,7 +7,8 @@
 
 body {
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    background-color: #333333; /* Dark background for contrast */
+    /* CHANGE: Replaced flat grey with a branded gradient (Dark Maroon to Black) */
+    background: linear-gradient(135deg, #2b0505 0%, #1a1a1a 100%);
     height: 100vh;
     display: flex;
     justify-content: center;
@@ -17,27 +18,41 @@ body {
 /* Login Card Container */
 .login-container {
     background-color: #ffffff;
-    padding: 40px;
-    border-radius: 10px;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
-    width: 100%;
+    padding: 20px 40px 40px;
+    border-radius: 12px; /* Softened corners */
+    /* CHANGE: Added a colored top border to brand the card immediately */
+    border-top: 6px solid #800000; 
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5); /* Deeper, floating shadow */
+    width: 90%;
     max-width: 400px;
     text-align: center;
+    position: relative;
+    overflow: hidden;
 }
 
-/* Typography */
+/* Logo Styling */
+.logo-img {
+    width: 115px; /* Adjust based on preference */
+    height: auto;
+    margin-bottom: 15px;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,0.1));
+}
+
+/* Typography */  /*Life Line*/
 h1 {
-    color: #800000; /* Maroon color */
-    margin-bottom: 10px;
-    font-size: 28px;
-    letter-spacing: 1px;
-    font-weight: bold;
+    color: #800000;
+    margin-bottom: 1px;
+    font-size: 26px;
+    letter-spacing: 0.5px;
+    font-weight: 700;
+    text-transform: uppercase;
 }
 
 .subtitle {
     color: #666;
-    font-size: 14px;
-    margin-bottom: 30px;
+    font-size: 13px;
+    margin-bottom: 25px;
+    font-style: italic; /* Matches the "Fast Action" slogan vibe */
 }
 
 /* Form Elements */
@@ -50,55 +65,75 @@ label {
     display: block;
     margin-bottom: 8px;
     font-weight: 600;
-    color: #333;
-    font-size: 14px;
+    color: #444;
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
 input[type="text"],
 input[type="password"] {
     width: 100%;
-    padding: 12px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    font-size: 14px;
+    padding: 14px;
+    border: 2px solid #eee; /* Thicker, cleaner border */
+    border-radius: 8px;
+    font-size: 15px;
     outline: none;
-    transition: border-color 0.3s;
+    transition: all 0.3s ease;
+    background-color: #fafafa;
 }
 
+/* CHANGE: Focus state now glows with the logo's pink/red hue */
 input[type="text"]:focus,
 input[type="password"]:focus {
-    border-color: #800000; /* Maroon border on focus */
+    border-color: #800000;
+    background-color: #fff;
+    box-shadow: 0 0 0 4px rgba(128, 0, 0, 0.1);
 }
 
 /* Button Styling */
 button {
     width: 100%;
-    padding: 12px;
-    background-color: #800000; /* Maroon background */
+    padding: 14px;
+    background-color: #800000;
     color: white;
     border: none;
-    border-radius: 5px;
+    border-radius: 8px;
     font-size: 16px;
-    font-weight: bold;
+    font-weight: 700;
     cursor: pointer;
-    transition: background-color 0.3s;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-top: 10px;
 }
 
 button:hover {
-    background-color: #5c0000; /* Darker maroon on hover */
+    background-color: #5c0000;
+    transform: translateY(-2px); /* Subtle lift effect */
+    box-shadow: 0 4px 12px rgba(92, 0, 0, 0.3);
+}
+
+button:active {
+    transform: translateY(0);
 }
 
 /* Error Message */
 #loginError {
-    color: #d9534f;
+    color: #d32f2f;
     margin-top: 15px;
-    font-size: 14px;
-    min-height: 20px; /* Prevents layout jump when error appears */
+    font-size: 13px;
+    background-color: #ffebee; /* Light red background for visibility */
+    padding: 0; /* Will expand if text is added */
+    border-radius: 4px;
+    transition: padding 0.3s;
 }
 
 /* Footer Text */
 .footer-text {
-    margin-top: 20px;
-    font-size: 12px;
-    color: #888;
+    margin-top: 25px;
+    font-size: 11px;
+    color: #999;
+    border-top: 1px solid #eee;
+    padding-top: 15px;
 }
