@@ -164,7 +164,7 @@
             // Generate QR code if on manage tab
             if (tab === 'manage' && studentData.student) {
                 setTimeout(() => {
-                    const qrUrl = `https://lifeline-app-part-2.onrender.com/alarm.html?schoolId=${studentData.student.schoolId}`;
+                    const qrUrl = `https://lifeline-web-app.onrender.com/alarm.html?schoolId=${studentData.student.schoolId}`;
                     generateQRCode(qrUrl, 'studentQRContainer');
                 }, 100);
             }
@@ -319,7 +319,7 @@
 
         function downloadStudentQR() {
             const schoolId = studentData.student.schoolId;
-            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://lifeline-app-part-2.onrender.com/alarm.html?schoolId=${schoolId}`)}`;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://https://lifeline-web-app.onrender.com/alarm.html?schoolId=${schoolId}`)}`;
             
             const link = document.createElement('a');
             link.href = qrUrl;
