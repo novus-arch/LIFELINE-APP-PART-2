@@ -1,5 +1,13 @@
 // Shared functions and utilities for all dashboards
 
+// To connect with server for auto refresh
+const socket = io();
+
+socket.on('refresh-page', () => {
+    console.log('Refresh event received, reloading dashboard...');
+    location.reload();
+});
+
 const username = localStorage.getItem('username');
 const authority = localStorage.getItem('authority');
 let currentTab = 'overview';
@@ -65,13 +73,6 @@ if(authority) {
 if (!username || !authority) {
     window.location.href = '/index.html';
 }
-
-const socket = io();
-
-socket.on('refresh-page', () => {
-    console.log('Refresh event received, reloading dashboard...');
-    location.reload();
-});
 
 // Logout button
 document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -192,124 +193,9 @@ function showCompletionMessage(message, type) {
     msgEl.style.borderLeft = `4px solid ${type === 'error' ? '#c33' : '#3c3'}`;
 }
 
-function switchTab(tabName) {
-    currentTab = tabName;
-    
-    // Update active button
-    const buttons = document.querySelectorAll('.tab-btn');
-    buttons.forEach(btn => btn.classList.remove('active'));
-    event.target.classList.add('active');
-    
-    showTab(tabName);
-}
-
 function makeAlarm(schoolId) {
     if (confirm('Are you sure you want to create an alarm?')) {
         window.location.href = `/alarm.html?schoolId=${schoolId}`;
     }
 }
 
-async function createAccount(event, type) {
-    event.preventDefault();
-    
-    let name, schoolId, password, department;
-    
-    if (type === 'student') {
-        name = document.getElementById('studentName').value;
-        schoolId = document.getElementById('studentSchoolId').value;
-        password = document.getElementById('studentPassword').value;
-        department = document.getElementById('studentDept').value || 'General';
-    } else if (type === 'staff') {
-        name = document.getElementById('staffName').value;
-        schoolId = document.getElementById('staffSchoolId').value;
-        password = document.getElementById('staffPassword').value;
-        department = document.getElementById('staffDept').value || 'General';
-    }
-
-    const endpoint = type === 'student' ? `/dashboard/student/${schoolId}` : `/dashboard/staff/${schoolId}`;
-    
-    try {
-        const response = await fetch(endpoint, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                username: name,
-                password: password,
-                authority: authority,
-                department: department
-            })
-        });
-
-        const data = await response.json();
-        const messageDiv = document.getElementById('createMessage');
-
-        if (data.success) {
-            messageDiv.style.backgroundColor = '#d4edda';
-            messageDiv.style.color = '#155724';
-            messageDiv.textContent = `✓ ${data.message}`;
-            messageDiv.style.display = 'block';
-            
-            // Reset form
-            if (type === 'student') {
-                document.getElementById('createStudentForm').reset();
-            } else {
-                document.getElementById('createStaffForm').reset();
-            }
-            
-            // Reload dashboard after 2 seconds
-            setTimeout(() => location.reload(), 2000);
-        } else {
-            messageDiv.style.backgroundColor = '#f8d7da';
-            messageDiv.style.color = '#721c24';
-            messageDiv.textContent = `✗ ${data.message}`;
-            messageDiv.style.display = 'block';
-        }
-    } catch (err) {
-        const messageDiv = document.getElementById('createMessage');
-        messageDiv.style.backgroundColor = '#f8d7da';
-        messageDiv.style.color = '#721c24';
-        messageDiv.textContent = `✗ Error: ${err.message}`;
-        messageDiv.style.display = 'block';
-    }
-}
-
-async function deleteRecord(type, identifier) {
-    if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) {
-        return;
-    }
-
-    try {
-        let endpoint = '';
-        
-        if (type === 'alarm') {
-            endpoint = `/alarm/${identifier}`;
-        } else if (type === 'student') {
-            endpoint = `/student/${identifier}`;
-        } else if (type === 'staff') {
-            endpoint = `/staff/${identifier}`;
-        }
-
-        const response = await fetch(endpoint, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                authority: authority
-            })
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            alert(`✓ ${data.message}`);
-            location.reload();
-        } else {
-            alert(`✗ Error: ${data.message}`);
-        }
-    } catch (err) {
-        alert(`✗ Error: ${err.message}`);
-    }
-}

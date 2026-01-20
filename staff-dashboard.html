@@ -40,16 +40,16 @@
                     
                     // Get current staff member's details
                     const staffResponse = await fetch(`/staff/${schoolId}`);
-                    const staffData = await staffResponse.json();
+                    const fetchedStaffData = await staffResponse.json();
                     
-                    if (staffData.success) {
+                    if (fetchedStaffData.success) {
                         // Get dashboard data for the department
                         const dashboardResponse = await fetch(`/dashboard/staff/${userData.user.department}`);
                         const dashboardData = await dashboardResponse.json();
                         
                         if (dashboardData.success) {
                             // Merge staff data with dashboard data
-                            dashboardData.staff = staffData.staff;
+                            dashboardData.staff = fetchedStaffData.staff;
                             
                             const staff = dashboardData.staff || {};
                             // If newuser flag present, force completion
@@ -65,7 +65,7 @@
                                 showCompletionForm('staff', dashboardData);
                                 return;
                             }
-                            displayStaffDashboard(dashboardData);
+                            staffData = dashboardData;
                             setupStaffTabs();
                         }
                         else throw new Error(dashboardData.message);
@@ -88,16 +88,8 @@
             tabHtml += '</div>';
             document.getElementById('tabNavigation').innerHTML = tabHtml;
             currentTab = 'overview';
-            showTab('overview');
-        }
-
-        function displayStaffDashboard(data) {
-            staffData = data;
-            setupStaffTabs();
-        }
-
-        function showTab(tab) {
-            showStaffTab(tab);
+            
+            showStaffTab('overview');
         }
 
         function showStaffTab(tab) {
@@ -118,6 +110,9 @@
                         const createdDate = new Date(alarm.createdAt).toLocaleString();
                         const alarmId = alarm.id || alarm._id;
                         html += `<tr><td>${alarm.schoolId}</td><td>${getEmergencyTypeDisplay(alarm.emergency)}</td><td><span style="color:red; font-weight:bold;">${alarm.status}</span></td><td>${createdDate}</td><td><button class="btn-small btn-manage" onclick="resolveAlarm('${alarmId}')">Resolve</button></td></tr>`;
+                        if (alarm.message){
+                            html += `<tr><td>Message: ${alarm.message || ''}</td><td colspan="4"></td></tr>`;
+                        }
                     });
                 } else { html += '<tr><td colspan="5">No active alarms in this department.</td></tr>'; }
                 html += '</tbody></table></div>';
@@ -133,7 +128,7 @@
                 html += '</tbody></table></div>';
             }
             
-            if (tab === 'alarms') {
+            else if (tab === 'alarms') {
                 html = `<h2>${staffData.department} Department - All Alarm Records</h2>`;
                 html += '<div class="table-container"><table><thead><tr><th>School ID</th><th>Emergency Level</th><th>Status</th><th>Created</th><th>Resolved</th><th>Actions</th></tr></thead><tbody>';
                 if (staffData.alarms && staffData.alarms.length > 0) {
@@ -151,6 +146,9 @@
                                         <span style="color: #999; font-size: 12px;">View Only</span>
                                     </td>
                                 </tr>`;
+                        if (alarm.message){
+                            html += `<tr><td></td><td>Message: ${alarm.message}</td><td colspan="4"></td></tr>`;
+                        }
                     });
                 } else { html += '<tr><td colspan="6">No alarm records found.</td></tr>'; }
                 html += '</tbody></table></div>';

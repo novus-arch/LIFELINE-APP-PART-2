@@ -124,8 +124,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        emergency: false,
-                        message: { type: 'Initializing', additionalInfo: '' },
+                        emergency: 0,
+                        message: '',
                         status: 'ongoing'
                     })
                 });
@@ -189,6 +189,7 @@
             closeModal();
             
             const typeNames = {
+                0: 'No Emergency',
                 1: 'Type 1',
                 2: 'Type 2',
                 3: 'Type 3'
@@ -201,7 +202,7 @@
                     body: JSON.stringify({
                         emergency: type, 
                         status: 'ongoing',
-                        message: `Emergency Button Pressed - ${typeNames[type]}`
+                        message: `${typeNames[type]} emergency reported by student.`
                     })
                 });
                 
@@ -230,7 +231,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         status: 'ongoing',
-                        message: { type: 'Update', additionalInfo: msg }
+                        message: msg
                     })
                 });
                 const data = await response.json();

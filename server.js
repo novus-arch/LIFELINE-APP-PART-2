@@ -270,7 +270,7 @@ app.post('/alarm/:schoolId', async (req, res) => {
     }
 });
 
-// Get specific student alarm
+// Get specific alarm
 app.get('/alarms/:schoolId', async (req, res) => {
     // checks if database is connected
     if (!db) {
@@ -1082,7 +1082,7 @@ app.post('/alarm/:alarmId/false', async (req, res) => {
 
 // Delete alarm by ID - ADMIN only (Note: only do if needed, as it removes data permanently)
 app.delete('/alarm/:alarmId', async (req, res) => {
-    const { authority, deleteCode } = req.body;
+    const { authority } = req.body;
     const { alarmId } = req.params;
 
     // Check authority
@@ -1090,12 +1090,6 @@ app.delete('/alarm/:alarmId', async (req, res) => {
         return res.status(403).json({
             success: false,
             message: 'Unauthorized: Only ADMIN can delete alarms'
-        });
-    }
-    if (deleteCode !== process.env.DELETE_CODE) {
-        return res.status(403).json({
-            success: false,
-            message: 'Unauthorized: Invalid delete code'
         });
     }
 
@@ -1296,18 +1290,26 @@ const server = ioServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`\nAPI Endpoints:`);
     console.log(`   POST    /login              - Login with accountName and password`);
-    console.log(`   POST    /alarm              - Create or update alarm with schoolId`);
-    console.log(`   GET     /alarm/:schoolId    - Get specific student alarm`);
-    console.log(`   GET     /alarms             - Get all active alarms`);
-    console.log(`   GET     /dashboard/student/:schoolId    - Student dashboard`);
-    console.log(`   GET     /dashboard/staff/:department    - Staff dashboard with students and alarms in their department`);
-    console.log(`   GET     /dashboard/admin                - Admin dashboard with all students and alarms`);
-    console.log(`   POST    /dashboard/student/:schoolId    - Create student account (ADMIN or STAFF only)`);
-    console.log(`   POST    /dashboard/staff/:schoolId      - Create staff account (ADMIN only)`);
-    console.log(`   POST    /alarm/:alarmId/resolve         - Resolve alarm by ID (ADMIN or STAFF only)`);
-    console.log(`   POST    /alarm/:alarmId/false           - Mark alarm as false by ID (STUDENT only)`);
-    console.log(`   DELETE  /alarm/:alarmId                 - Delete alarm by ID (ADMIN only)`);
-    console.log(`   GET     /health                         - Health check\n`);
+    console.log(`   GET     /user/:username     - Get Data based on username`);
+    console.log(`   POST    /alarm/:schoolId    - Create or update alarm with schoolId`);
+    console.log(`   GET     /alarm/:alarmId     - Get alarm data by alarm ID`);
+    console.log(`   GET     /alarms/all         - Get all alarms`);
+    console.log(`   GET     /dashboard/student/:schoolId - Get student dashboard data`);
+    console.log(`   GET     /dashboard/staff/:department - Get staff dashboard data`);
+    console.log(`   GET     /dashboard/admin    - Get admin dashboard data`);
+    console.log(`   POST    /dashboard/student/:schoolId - Create student account (ADMIN/STAFF only)`);
+    console.log(`   POST    /dashboard/staff/:schoolId   - Create staff account (ADMIN only)`);
+    console.log(`   POST    /student/:schoolId/update-profile - Update student profile`);
+    console.log(`   POST    /staff/:schoolId/update-profile   - Update staff profile`);
+    console.log(`   GET     /staff/:schoolId    - Get staff data`);
+    console.log(`   GET     /student/:schoolId/alarms - Get student alarm records`);
+    console.log(`   POST    /alarm/:alarmId/resolve - Resolve alarm (ADMIN/STAFF only)`);
+    console.log(`   POST    /alarm/:alarmId/false   - Mark alarm as false (STUDENT only)`);
+    console.log(`   DELETE  /alarm/:alarmId     - Delete alarm (ADMIN only)`);
+    console.log(`   POST    /user/change-password - Change user password`);
+    console.log(`   DELETE  /student/:schoolId  - Delete student (ADMIN only)`);
+    console.log(`   DELETE  /staff/:schoolId    - Delete staff (ADMIN only)`);
+    console.log(`   GET     /health             - Health check endpoint\n`);
 });
 
 // Attempt to connect to MongoDB in background

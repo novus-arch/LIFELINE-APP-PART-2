@@ -26,12 +26,13 @@
     <script>
         let adminData = {};
 
+        // Re fetch data and Load Admin Dashboard
         async function loadAdminDashboard() {
             try {
                 const response = await fetch('/dashboard/admin');
                 const data = await response.json();
                 if (data.success) {
-                    displayAdminDashboard(data);
+                    adminData = data;
                     setupAdminTabs();
                 }
                 else throw new Error(data.message);
@@ -41,6 +42,7 @@
             }
         }
 
+        // Setup main admin tabs
         function setupAdminTabs() {
             const tabs = ['overview', 'alarms', 'students', 'staffs'];
             let tabHtml = '<div class="tabs">';
@@ -50,18 +52,10 @@
             });
             tabHtml += '</div>';
             document.getElementById('tabNavigation').innerHTML = tabHtml;
-            showTab('overview');
+            showAdminTab('overview');
         }
 
-        function displayAdminDashboard(data) {
-            adminData = data;
-            setupAdminTabs();
-        }
-
-        function showTab(tab) {
-            showAdminTab(tab);
-        }
-
+        // Show selected tab content
         function showAdminTab(tab) {
             let html = '';
             
@@ -81,13 +75,16 @@
                         const createdDate = new Date(alarm.createdAt).toLocaleString();
                         const alarmId = alarm.id || alarm._id;
                         html += `<tr><td>${alarm.schoolId}</td><td>${getEmergencyTypeDisplay(alarm.emergency)}</td><td><span style="color:red; font-weight:bold;">${alarm.status}</span></td><td>${createdDate}</td><td><button class="btn-small btn-manage" onclick="resolveAlarm('${alarmId}')">Resolve</button></td></tr>`;
+                        if (alarm.message){
+                            html += `<tr><td>Message: ${alarm.message}</td><td colspan="4"></td></tr>`;
+                        }
                     });
                 } else { html += '<tr><td colspan="5">No active alarms.</td></tr>'; }
                 html += '</tbody></table></div>';
 
                 // Emergency Contacts
                 html += '<h3>Emergency Contacts</h3>';
-                html += '<div class="table-container"><table><thead><tr><th>Student Name</th><th>School ID</th><th>Contact Name</th><th>Contact Number</th></tr></thead><tbody>';
+                html += '<div class="table-container"><table><thead><tr><th>Organization</th><th>Contact Number</th></tr></thead><tbody>';
                 html += '<tr><td colspan="4" style="text-align: center; color: #999;">No emergency contacts recorded yet.</td></tr>';
                 html += '</tbody></table></div>';
             }
@@ -110,6 +107,9 @@
                                         <button class="btn-small btn-delete" onclick="deleteRecord('alarm', '${alarmId}')">Delete</button>
                                     </td>
                                 </tr>`;
+                        if (alarm.message){
+                            html += `<tr><td></td><td>Message: ${alarm.message}</td><td colspan="4"></td></tr>`;
+                        }
                     });
                 } else { html += '<tr><td colspan="6">No alarm records found.</td></tr>'; }
                 html += '</tbody></table></div>';
@@ -203,6 +203,44 @@
             document.getElementById('dashboardContent').innerHTML = html;
         }
 
+        // Function to switch tabs
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update active button
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            showAdminTab(tabName);
+        }
+
+        // Resolve an ongoing alarm
+        async function resolveAlarm(alarmId) {
+            if (confirm('Are you sure you want to resolve this alarm?')) {
+                try {
+                    const response = await fetch(`/alarm/${alarmId}/resolve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            authority: authority
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Alarm resolved successfully!');
+                        loadAdminDashboard();
+                    } else {
+                        alert('Failed to resolve alarm: ' + data.message);
+                    }
+                } catch (err) {
+                    alert('Error resolving alarm: ' + err.message);
+                }
+            }
+        }
+
+        // Account creation for student and staffs
         async function createAccount(event, type) {
             event.preventDefault();
             
@@ -267,6 +305,7 @@
             }
         }
 
+        // Account deletion for students and staffs
         async function deleteRecord(type, identifier) {
             if (!confirm(`Are you sure you want to delete this ${type}? This action cannot be undone.`)) {
                 return;
@@ -296,51 +335,17 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    alert(`✓ ${data.message}`);
+                    alert(`${data.message}`);
                     loadAdminDashboard();
                 } else {
-                    alert(`✗ Error: ${data.message}`);
+                    alert(`Error: ${data.message}`);
                 }
             } catch (err) {
-                alert(`✗ Error: ${err.message}`);
+                alert(`Error: ${err.message}`);
             }
         }
 
-        function switchTab(tabName) {
-            currentTab = tabName;
-            
-            // Update active button
-            const buttons = document.querySelectorAll('.tab-btn');
-            buttons.forEach(btn => btn.classList.remove('active'));
-            event.target.classList.add('active');
-            
-            showAdminTab(tabName);
-        }
-
-        async function resolveAlarm(alarmId) {
-            if (confirm('Are you sure you want to resolve this alarm?')) {
-                try {
-                    const response = await fetch(`/alarm/${alarmId}/resolve`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            authority: authority
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (data.success) {
-                        alert('Alarm resolved successfully!');
-                        loadAdminDashboard();
-                    } else {
-                        alert('Failed to resolve alarm: ' + data.message);
-                    }
-                } catch (err) {
-                    alert('Error resolving alarm: ' + err.message);
-                }
-            }
-        }
-
+        // Show Student QR Code Modal
         function showStudentQR(schoolId) {
             const qrUrl = `https://lifeline-app-part-2.onrender.com/alarm.html?schoolId=${schoolId}`;
             const qrHtml = `

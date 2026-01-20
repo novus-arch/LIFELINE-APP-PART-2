@@ -55,7 +55,8 @@
                         showCompletionForm('student', data);
                         return;
                     }
-                    displayStudentDashboard(data);
+                    
+                    studentData = data;
                     setupStudentTabs();
                 }
                 else throw new Error(data.message);
@@ -75,15 +76,6 @@
             tabHtml += '</div>';
             document.getElementById('tabNavigation').innerHTML = tabHtml;
             showStudentTab('overview');
-        }
-
-        function displayStudentDashboard(data) {
-            studentData = data;
-            setupStudentTabs();
-        }
-
-        function showTab(tab) {
-            showStudentTab(tab);
         }
 
         function showStudentTab(tab) {
@@ -176,6 +168,17 @@
                     generateQRCode(qrUrl, 'studentQRContainer');
                 }, 100);
             }
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update active button
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            showAdminTab(tabName);
         }
 
         async function updateStudentProfile(event) {
