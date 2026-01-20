@@ -4,9 +4,12 @@ const path = require('path');
 require('dotenv').config();
 const app = express();
 const PORT = process.env.PORT || 3000;
+const cors = require('cors');
+// Middle Ware
 
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '.')));
+app.use(cors());
 
 // For real time refresh per alarm updates
 const { Server } = require('socket.io');
