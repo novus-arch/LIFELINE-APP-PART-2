@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Dashboard - LIFELINE</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand-name">L.I.F.E.L.I.N.E.</div>
+        <div class="user-controls">
+            <span id="welcomeMsg" style="font-size: 14px; opacity: 0.9;"></span>
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div id="tabNavigation" class="tab-navigation"></div>
+        <div id="dashboardContent"></div>
+        <div id="dashboardError" style="color: red;"></div>
+    </div>
+
+    <script src="dashboard-shared.js"></script>
+    <script>
+        let studentData = {};
+
+        async function loadStudentDashboard() {
+            try {
+                // Get user details including schoolId
+                const userResponse = await fetch(`/user/${username}`);
+                const userData = await userResponse.json();
+                
+                // Store schoolId in localStorage for use in other functions
+                if (userData.success && userData.user.schoolId) {
+                    localStorage.setItem('schoolId', userData.user.schoolId);
+                }
+                
+                const studentResponse = await fetch(`/dashboard/student/${username}`);
+                const data = await studentResponse.json();
+                if (data.success) {
+                    // Check if profile is complete (all fields must have non-empty values)
+                    const student = data.student;
+                    // If this is a new user, force completion flow
+                    if (student && student.newuser) {
+                        showCompletionForm('student', data);
+                        return;
+                    }
+                    const isComplete = student && student.email && student.location && student.emergencyContact && 
+                                     String(student.email).trim() !== '' && 
+                                     String(student.location).trim() !== '' && 
+                                     String(student.emergencyContact).trim() !== '';
+                    if (!isComplete) {
+                        showCompletionForm('student', data);
+                        return;
+                    }
+                    displayStudentDashboard(data);
+                    setupStudentTabs();
+                }
+                else throw new Error(data.message);
+            } catch (err) {
+                console.error('Error:', err);
+                document.getElementById('dashboardError').textContent = 'Error loading dashboard: ' + err.message;
+            }
+        }
+
+        function setupStudentTabs() {
+            const tabs = ['overview', 'records', 'manage'];
+            let tabHtml = '<div class="tabs">';
+            tabs.forEach(tab => {
+                const active = tab === 'overview' ? 'active' : '';
+                tabHtml += `<button class="tab-btn ${active}" onclick="switchTab('${tab}')">${tab.charAt(0).toUpperCase() + tab.slice(1)}</button>`;
+            });
+            tabHtml += '</div>';
+            document.getElementById('tabNavigation').innerHTML = tabHtml;
+            showStudentTab('overview');
+        }
+
+        function displayStudentDashboard(data) {
+            studentData = data;
+            setupStudentTabs();
+        }
+
+        function showTab(tab) {
+            showStudentTab(tab);
+        }
+
+        function showStudentTab(tab) {
+            let html = '';
+
+            if (tab === 'overview') {
+                html = '<h2>My Profile</h2>';
+                
+                // Profile Card style
+                html += `<div class="table-container" style="padding: 20px; margin-bottom: 20px;">
+                            <p><strong>Name:</strong> ${studentData.student.name}</p>
+                            <p><strong>ID:</strong> ${studentData.student.schoolId}</p>
+                            <p><strong>Dept:</strong> ${studentData.student.department}</p>
+                            <p><strong>Email:</strong> ${studentData.student.email || 'Not set'}</p>
+                            <p><strong>Location:</strong> ${studentData.student.location || 'Not set'}</p>
+                            <p><strong>Emergency Contact:</strong> ${studentData.student.emergencyContact || 'Not set'}</p>
+                         </div>`;
+                
+                html += '<h3>Emergency Status</h3>';
+                if (studentData.ongoingAlarm) {
+                    html += `<div class="table-container" style="padding: 30px; text-align: center; border-left: 5px solid red;">
+                                <h4 style="color: red; margin-bottom: 10px;">ONGOING ALARM</h4>
+                                <p>Status: ${studentData.ongoingAlarm.status}</p>
+                                <p style="margin-bottom: 20px;">Level: ${getEmergencyTypeDisplay(studentData.ongoingAlarm.emergency)}</p>
+                                <button class="btn-action btn-manage" onclick="window.location.href='/alarm.html?schoolId=${studentData.student.schoolId}&alarmId=${studentData.ongoingAlarm.id}'">Manage Alarm</button>
+                             </div>`;
+                } else {
+                     html += `<div class="table-container" style="padding: 30px; text-align: center; border-left: 5px solid green;">
+                                <p style="margin-bottom: 20px;">You are safe. No active alarms.</p>
+                                <button class="btn-action btn-create" onclick="makeAlarm('${studentData.student.schoolId}')">REPORT EMERGENCY</button>
+                             </div>`;
+                }
+            }
+
+            else if (tab === 'records') {
+                html = '<h2>My Alarm Records</h2>';
+                html += '<div id="recordsMessage" style="text-align: center; padding: 20px; color: #666;">Loading records...</div>';
+                loadStudentAlarmRecords();
+            }
+
+            else if (tab === 'manage') {
+                html = '<h2>Manage Account</h2>';
+                
+                // Profile Update Form
+                html += '<h3>Update Profile</h3>';
+                html += '<div class="form-card" style="max-width: 500px;">';
+                html += '<form id="updateProfileForm" onsubmit="updateStudentProfile(event)">';
+                html += '<label>Email:</label>';
+                html += `<input type="email" id="profileEmail" placeholder="Email" value="${studentData.student.email || ''}" required />`;
+                html += '<label>Location:</label>';
+                html += `<input type="text" id="profileLocation" placeholder="Location" value="${studentData.student.location || ''}" required />`;
+                html += '<label>Emergency Contact:</label>';
+                html += `<input type="text" id="profileContact" placeholder="Emergency Contact Name/Number" value="${studentData.student.emergencyContact || ''}" required />`;
+                html += '<label>Age:</label>';
+                html += `<input type="number" id="profileAge" placeholder="Age" value="${studentData.student.age || ''}" />`;
+                html += '<button type="submit" class="btn-create">Update Profile</button>';
+                html += '</form>';
+                html += '</div>';
+                html += '<div id="profileMessage" style="margin-top: 10px; padding: 10px; display: none; border-radius: 5px;"></div>';
+
+                // QR Code Section
+                html += '<h3 style="margin-top: 30px;">Your QR Code</h3>';
+                html += '<div class="form-card" style="max-width: 500px; text-align: center;">';
+                html += '<p style="margin-bottom: 15px;">Share this QR code for quick access to your alarm:</p>';
+                html += '<div id="studentQRContainer" style="margin: 20px 0; min-height: 300px;"></div>';
+                html += '<button type="button" class="btn-create" onclick="downloadStudentQR()">Download QR Code</button>';
+                html += '</div>';
+
+                // Password Change Form
+                html += '<h3 style="margin-top: 30px;">Change Password</h3>';
+                html += '<div class="form-card" style="max-width: 500px;">';
+                html += '<form id="changePasswordForm" onsubmit="changeStudentPassword(event)">';
+                html += '<label>Old Password:</label>';
+                html += '<input type="password" id="oldPassword" placeholder="Old Password" required />';
+                html += '<label>New Password:</label>';
+                html += '<input type="password" id="newPassword" placeholder="New Password" required />';
+                html += '<label>Confirm Password:</label>';
+                html += '<input type="password" id="confirmPassword" placeholder="Confirm Password" required />';
+                html += '<button type="submit" class="btn-create">Change Password</button>';
+                html += '</form>';
+                html += '</div>';
+                html += '<div id="passwordMessage" style="margin-top: 10px; padding: 10px; display: none; border-radius: 5px;"></div>';
+            }
+
+            document.getElementById('dashboardContent').innerHTML = html;
+            
+            // Generate QR code if on manage tab
+            if (tab === 'manage' && studentData.student) {
+                setTimeout(() => {
+                    const qrUrl = `https://lifeline-app-part-2.onrender.com/alarm.html?schoolId=${studentData.student.schoolId}`;
+                    generateQRCode(qrUrl, 'studentQRContainer');
+                }, 100);
+            }
+        }
+
+        async function updateStudentProfile(event) {
+            event.preventDefault();
+            
+            const email = document.getElementById('profileEmail').value;
+            const location = document.getElementById('profileLocation').value;
+            const emergencyContact = document.getElementById('profileContact').value;
+            const age = document.getElementById('profileAge').value;
+
+            try {
+                const schoolId = localStorage.getItem('schoolId');
+                const response = await fetch(`/student/${schoolId}/update-profile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        location,
+                        emergencyContact,
+                        age: age || null
+                    })
+                });
+
+                if (!response.ok) throw new Error('Update failed');
+
+                showProfileMessage('Profile updated successfully!', 'success');
+                studentData.student = { ...studentData.student, email, location, emergencyContact, age };
+                
+            } catch (error) {
+                console.error('Update error:', error);
+                showProfileMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function changeStudentPassword(event) {
+            event.preventDefault();
+
+            const oldPassword = document.getElementById('oldPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                showPasswordMessage('Passwords do not match!', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/user/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        oldPassword,
+                        newPassword
+                    })
+                });
+
+                if (!response.ok) throw new Error('Password change failed');
+
+                showPasswordMessage('Password changed successfully!', 'success');
+                document.getElementById('changePasswordForm').reset();
+                
+            } catch (error) {
+                console.error('Password change error:', error);
+                showPasswordMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showProfileMessage(message, type) {
+            const msgEl = document.getElementById('profileMessage');
+            msgEl.textContent = message;
+            msgEl.style.display = 'block';
+            msgEl.style.backgroundColor = type === 'error' ? '#fee' : '#efe';
+            msgEl.style.color = type === 'error' ? '#c33' : '#3c3';
+            msgEl.style.borderLeft = `4px solid ${type === 'error' ? '#c33' : '#3c3'}`;
+        }
+
+        function showPasswordMessage(message, type) {
+            const msgEl = document.getElementById('passwordMessage');
+            msgEl.textContent = message;
+            msgEl.style.display = 'block';
+            msgEl.style.backgroundColor = type === 'error' ? '#fee' : '#efe';
+            msgEl.style.color = type === 'error' ? '#c33' : '#3c3';
+            msgEl.style.borderLeft = `4px solid ${type === 'error' ? '#c33' : '#3c3'}`;
+        }
+
+        async function loadStudentAlarmRecords() {
+            try {
+                const schoolId = studentData.student.schoolId;
+                
+                if (!schoolId) {
+                    throw new Error('Student ID not found');
+                }
+                
+                const response = await fetch(`/student/${schoolId}/alarms`);
+                
+                if (!response.ok) throw new Error('Failed to load records');
+                
+                const data = await response.json();
+                const records = data.alarms;
+                let html = '';
+                
+                if (!records || records.length === 0) {
+                    html = '<div style="text-align: center; padding: 30px; color: #999;">';
+                    html += '<p style="font-size: 16px; margin-bottom: 10px;">No alarm records found.</p>';
+                    html += '<p style="font-size: 14px;">You haven\'t reported any emergencies yet.</p>';
+                    html += '</div>';
+                } else {
+                    html = '<div class="table-container"><table><thead><tr><th>Emergency Level</th><th>Status</th><th>Created</th><th>Resolved</th></tr></thead><tbody>';
+                    
+                    records.forEach(alarm => {
+                        const createdDate = new Date(alarm.createdAt).toLocaleString();
+                        const resolvedDate = alarm.resolvedAt ? new Date(alarm.resolvedAt).toLocaleString() : '-';
+                        html += `<tr>
+                                    <td><strong>${getEmergencyTypeDisplay(alarm.emergency)}</strong></td>
+                                    <td>${alarm.status}</td>
+                                    <td>${createdDate}</td>
+                                    <td>${resolvedDate}</td>
+                                 </tr>`;
+                    });
+                    
+                    html += '</tbody></table></div>';
+                }
+
+                const recordsEl = document.getElementById('recordsMessage');
+                if (recordsEl) {
+                    recordsEl.innerHTML = html;
+                }
+                
+            } catch (error) {
+                console.error('Load records error:', error);
+                const recordsEl = document.getElementById('recordsMessage');
+                if (recordsEl) {
+                    recordsEl.innerHTML = '<div style="color: red; padding: 20px;">Error loading records: ' + error.message + '</div>';
+                }
+            }
+        }
+
+        function downloadStudentQR() {
+            const schoolId = studentData.student.schoolId;
+            const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(`https://lifeline-app-part-2.onrender.com/alarm.html?schoolId=${schoolId}`)}`;
+            
+            const link = document.createElement('a');
+            link.href = qrUrl;
+            link.download = `lifeline-${schoolId}-qr.png`;
+            link.click();
+        }
+
+        window.addEventListener('load', loadStudentDashboard);
+    </script>
+</body>
+</html>
