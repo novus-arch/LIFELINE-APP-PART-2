@@ -51,7 +51,7 @@
         <span class="close-modal-btn" onclick="closeModal()">&times;</span>
         
         <div class="modal-content">
-            <div class="type-card type-1" onclick="sendEmergency('Type 1')">
+            <div class="type-card type-1" onclick="sendEmergency(1)">
                 <div class="card-header">
                     <div class="card-icon"><i class="fas fa-heart-pulse"></i></div>
                     <div class="card-title">TYPE 1</div>
@@ -63,7 +63,7 @@
                 </div>
             </div>
 
-            <div class="type-card type-2" onclick="sendEmergency('Type 2')">
+            <div class="type-card type-2" onclick="sendEmergency(2)">
                 <div class="card-header">
                     <div class="card-icon">
                         <svg xmlns="http://www.w3.org/2000/svg" width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
@@ -79,7 +79,7 @@
                 </div>
             </div>
 
-            <div class="type-card type-3" onclick="sendEmergency('Type 3')">
+            <div class="type-card type-3" onclick="sendEmergency(3)">
                 <div class="card-header">
                     <div class="card-icon"><i class="fas fa-tint"></i></div>
                     <div class="card-title">TYPE 3</div>
@@ -124,8 +124,8 @@
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        emergency: false,
-                        message: { type: 'Initializing', additionalInfo: '' },
+                        emergency: 0,
+                        message: '',
                         status: 'ongoing'
                     })
                 });
@@ -147,6 +147,13 @@
         }
 
         function displayAlarmInfo(alarm) {
+            const typeNames = {
+                0: 'No Emergency',
+                1: 'Type 1 - Minor',
+                2: 'Type 2 - Moderate',
+                3: 'Type 3 - Critical'
+            };
+            
             let html = `<p><strong>Alarm ID:</strong> ${alarm.id}</p>`;
             html += `<p><strong>Your ID:</strong> ${alarm.schoolId}</p>`;
             
@@ -155,8 +162,8 @@
             
             html += `<p><strong>Status:</strong> <span style="color:${statusColor}; font-weight:bold">${statusText}</span></p>`;
             
-            if(alarm.message && alarm.message.type) {
-                 html += `<p><strong>Last Report:</strong> ${alarm.message.type}</p>`;
+            if(alarm.message) {
+                 html += `<p><strong>Last Report:</strong> ${alarm.message}</p>`;
             }
 
             document.getElementById('alarmInfo').innerHTML = html;
@@ -181,24 +188,28 @@
         async function sendEmergency(type) {
             closeModal();
             
+            const typeNames = {
+                0: 'No Emergency',
+                1: 'Type 1',
+                2: 'Type 2',
+                3: 'Type 3'
+            };
+            
             try {
                 const response = await fetch(`/alarm/${schoolId}`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
-                        emergency: true, 
+                        emergency: type, 
                         status: 'ongoing',
-                        message: { 
-                            type: type, 
-                            additionalInfo: 'Emergency Button Pressed' 
-                        }
+                        message: `${typeNames[type]} emergency reported by student.`
                     })
                 });
                 
                 const data = await response.json();
                 
                 if (data.success) {
-                    document.getElementById('alarmError').textContent = `${type} Alert Sent!`;
+                    document.getElementById('alarmError').textContent = `${typeNames[type]} Alert Sent!`;
                     document.getElementById('alarmError').style.color = 'red';
                     displayAlarmInfo(data.alarm);
                 } else {
@@ -220,7 +231,7 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                         status: 'ongoing',
-                        message: { type: 'Update', additionalInfo: msg }
+                        message: msg
                     })
                 });
                 const data = await response.json();

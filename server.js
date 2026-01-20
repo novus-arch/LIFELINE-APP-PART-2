@@ -54,7 +54,7 @@ function formatString(str) {
     });
 }
 
-// To Login using accountName and password, and display correct Authority
+// To Login using accountName and password, and return authority and schoolId
 app.post('/login', async (req, res) => {
     const {username, password} = req.body;
 
@@ -108,7 +108,7 @@ app.post('/login', async (req, res) => {
     }
 });
 
-// Get current user details
+// Get current user details: USERNAME, SCHOOL ID, AUTHORITY, DEPARTMENT
 app.get('/user/:username', async (req, res) => {
     if (!db) {
         return res.status(503).json({
@@ -131,7 +131,8 @@ app.get('/user/:username', async (req, res) => {
 
         let userDetails = {
             username: user.username,
-            authority: user.authority
+            authority: user.authority,
+            schoolId: user.schoolId
         };
 
         // Get additional details based on role
@@ -140,7 +141,9 @@ app.get('/user/:username', async (req, res) => {
             if (student) {
                 userDetails.department = student.department;
             }
-        } else if (user.authority === 'STAFF') {
+        } 
+        
+        else if (user.authority === 'STAFF') {
             const staff = await db.collection('staffs').findOne({ schoolId: username });
             if (staff) {
                 userDetails.department = staff.department;
@@ -151,7 +154,9 @@ app.get('/user/:username', async (req, res) => {
             success: true,
             user: userDetails
         });
-    } catch (err) {
+    } 
+    
+    catch (err) {
         res.status(500).json({
             success: false,
             message: 'Database Error: ' + (err.message || err)
@@ -203,12 +208,9 @@ app.post('/alarm/:schoolId', async (req, res) => {
         // If no active alarm, create a new one
         if (!alarm) {
             const newAlarm = {
-                schoolId:   schoolId,
-                emergency: false,
-                message: {
-                    type: '',
-                    additionalInfo: ''
-                },
+                schoolId:       schoolId,
+                emergency:      0,
+                message:        '',
                 status:         'ongoing',
                 createdAt:      currentTime,
                 lastUpdated:    currentTime,
@@ -271,7 +273,7 @@ app.post('/alarm/:schoolId', async (req, res) => {
     }
 });
 
-// Get specific student alarm
+// Get specific alarm
 app.get('/alarms/:schoolId', async (req, res) => {
     // checks if database is connected
     if (!db) {
@@ -328,8 +330,8 @@ app.get('/alarms/:schoolId', async (req, res) => {
     }
 });
 
-// Get all alarms as an array
-app.get('/alarms', async (req, res) => {
+// Get all alarms
+app.get('/alarms/all', async (req, res) => {
     // checks if database is connected
     if (!db) {
         return res.status(503).json({
@@ -341,77 +343,15 @@ app.get('/alarms', async (req, res) => {
     try {
         const alarms = await db.collection('alarms')
             .find({})
-            .sort({ updatedAt: -1 })
+            .sort({ createdAt: -1 })
             .toArray();
-
-        const alarmsWithStudents = await Promise.all(
-            alarms.map(async (alarm) => {
-                const student = await db.collection('students').findOne({ schoolId: alarm.schoolId });
-                return {
-                    id: alarm._id,
-                    schoolId: alarm.schoolId,
-                    studentInfo: student,
-                    emergency: alarm.emergency,
-                    message: alarm.message,
-                    status: alarm.status,
-                    createdAt: alarm.createdAt,
-                    updatedAt: alarm.updatedAt,
-                    resolvedAt: alarm.resolvedAt
-                };
-            })
-        );
 
         res.status(200).json({
         success: true,
-        alarms: alarmsWithStudents
-        });
-    }
-    catch (err) {
-        res.status(500).json({
-            success: false,
-            message: 'Database Error: ' + (err.message || err)
-        });
-    }
-});
-
-// Get all ongoing alarms
-app.get('/alarms/ongoing', async (req, res) => {
-    // checks if database is connected
-    if (!db) {
-        return res.status(503).json({
-            success: false,
-            message: 'Database not connected'
+        alarms: alarms
         });
     }
 
-    try {
-        const alarms = await db.collection('alarms')
-            .find({ status: 'ongoing' })
-            .sort({ updatedAt: -1 })
-            .toArray();
-
-        const alarmsWithStudents = await Promise.all(
-            alarms.map(async (alarm) => {
-                const student = await db.collection('students').findOne({ schoolId: alarm.schoolId });
-                return {
-                    id: alarm._id,
-                    schoolId: alarm.schoolId,
-                    studentInfo: student,
-                    emergency: alarm.emergency,
-                    message: alarm.message,
-                    status: alarm.status,
-                    createdAt: alarm.createdAt,
-                    updatedAt: alarm.updatedAt,
-                    resolvedAt: alarm.resolvedAt
-                };
-            })
-        );
-
-        res.status(200).json({
-        success: true,
-        alarms: alarmsWithStudents
-        });
-    }
     catch (err) {
         res.status(500).json({
             success: false,
@@ -458,6 +398,7 @@ app.get('/dashboard/student/:schoolId', async (req, res) => {
                 location:       student.location,
                 email:          student.email,
                 emergencyContact: student.emergencyContact,
+                newuser:        !!student.newuser,
                 medicalHistory: student.medicalHistory,
                 allergies:      student.allergies
             },
@@ -497,13 +438,15 @@ app.get('/dashboard/staff/:department', async (req, res) => {
 
         // Get all ongoing alarms in the same department
         const alarms = await db.collection('alarms')
-        .find({schoolId: { $in: students.map(s => s.schoolId) }, status: 'ongoing' })
+        .find({schoolId: { $in: students.map(s => s.schoolId) }})
         .sort({ updatedAt: -1 })
         .toArray();
 
-        // Create map of alarms by schoolId for easy lookup
+        const ongoingAlarms = alarms.filter(alarm => alarm.status === 'ongoing');
+
+        // Create map of alarms by schoolId for easy lookup (only for ongoing alarms)
         const alarmsByStudent = {};
-        for (const alarm of alarms) {
+        for (const alarm of ongoingAlarms) {
             alarmsByStudent[alarm.schoolId] = {
                 id:             alarm._id,
                 schoolId:       alarm.schoolId,
@@ -526,6 +469,7 @@ app.get('/dashboard/staff/:department', async (req, res) => {
             location:           student.location,
             email:              student.email,
             emergencyContact:   student.emergencyContact,
+            newuser:            !!student.newuser,
             medicalHistory:     student.medicalHistory,
             allergies:          student.allergies,
             ongoingAlarm:       alarmsByStudent[student.schoolId] || null
@@ -539,10 +483,19 @@ app.get('/dashboard/staff/:department', async (req, res) => {
             role:               'staff',
             department:         req.params.department,
             totalStudents:      students.length,
-            ongoingAlarmCount:  alarms.length,
+            ongoingAlarmCount:  ongoingAlarms.length,
             students:           studentTable,
-            staffs:             staffs,
-            ongoingAlarms: alarms.map(alarm => ({
+            staffs:             staffs.map(s => ({
+                name:           s.name,
+                schoolId:       s.schoolId,
+                department:     s.department,
+                age:            s.age,
+                location:       s.location,
+                email:          s.email,
+                contact:        s.contact,
+                newuser:        !!s.newuser
+            })),
+            ongoingAlarms:      ongoingAlarms.map(alarm => ({
                 id:             alarm._id,
                 schoolId:       alarm.schoolId,
                 emergency:      alarm.emergency,
@@ -552,9 +505,22 @@ app.get('/dashboard/staff/:department', async (req, res) => {
                 updatedAt:      alarm.updatedAt,
                 resolvedAt:     alarm.resolvedAt,
                 lastAction:     alarm.lastAction
-            }))
+            })),
+            alarms:             alarms.map(alarm => ({
+                id:             alarm._id,
+                schoolId:       alarm.schoolId,
+                emergency:      alarm.emergency,
+                message:        alarm.message,
+                status:         alarm.status,
+                createdAt:      alarm.createdAt,
+                updatedAt:      alarm.updatedAt,
+                resolvedAt:     alarm.resolvedAt,
+                lastAction:     alarm.lastAction
+            })),
         });
-    } catch (err) {
+    } 
+    
+    catch (err) {
         console.error('Error:', err);
         res.status(500).json({
         success: false,
@@ -576,11 +542,14 @@ app.get('/dashboard/admin', async (req, res) => {
         // Get all students
         const students = await db.collection('students').find({}).toArray();
 
-        // Get all ongoing alarms
+        // Get all alarms
         const alarms = await db.collection('alarms')
-        .find({ status: 'ongoing' })
-        .sort({ updatedAt: -1 })
+        .find({})
+        .sort({ createdAt: -1 })
         .toArray();
+
+        // Get ongoing alarms only
+        const ongoingAlarms = alarms.filter(alarm => alarm.status === 'ongoing');
 
         // Create map of alarms by schoolId for easy lookup
         const alarmsByStudent = {};
@@ -607,6 +576,7 @@ app.get('/dashboard/admin', async (req, res) => {
             location:           student.location,
             email:              student.email,
             emergencyContact:   student.emergencyContact,
+            newuser:            !!student.newuser,
             medicalHistory:     student.medicalHistory,
             allergies:          student.allergies,
             ongoingAlarm:       alarmsByStudent[student.schoolId] || null
@@ -619,10 +589,19 @@ app.get('/dashboard/admin', async (req, res) => {
             success:            true,
             role:               'admin',
             totalStudents:      students.length,
-            ongoingAlarmCount:  alarms.length,
+            ongoingAlarmCount:  ongoingAlarms.length,
             students:           studentTable,
-            staffs:             staffs,
-            ongoingAlarms: alarms.map(alarm => ({
+            staffs:             staffs.map(s => ({
+                name: s.name,
+                schoolId: s.schoolId,
+                department: s.department,
+                age: s.age,
+                location: s.location,
+                email: s.email,
+                contact: s.contact,
+                newuser: !!s.newuser
+            })),
+            ongoingAlarms:      ongoingAlarms.map(alarm => ({
                 id:             alarm._id,
                 schoolId:       alarm.schoolId,
                 emergency:      alarm.emergency,
@@ -632,9 +611,21 @@ app.get('/dashboard/admin', async (req, res) => {
                 updatedAt:      alarm.updatedAt,
                 resolvedAt:     alarm.resolvedAt,
                 lastAction:     alarm.lastAction
-            }))
+            })),
+            allAlarms:          alarms.map(alarm => ({
+                id:             alarm._id,
+                schoolId:       alarm.schoolId,   
+                emergency:      alarm.emergency,
+                message:        alarm.message,
+                status:         alarm.status,
+                createdAt:      alarm.createdAt,
+                updatedAt:      alarm.updatedAt,
+                resolvedAt:     alarm.resolvedAt,
+                lastAction:     alarm.lastAction
+            })),
         });
-    } catch (err) {
+    } 
+    catch (err) {
         console.error('Error:', err);
         res.status(500).json({
         success: false,
@@ -646,7 +637,7 @@ app.get('/dashboard/admin', async (req, res) => {
 // Create account for student - ADMIN or STAFF only
 app.post('/dashboard/student/:schoolId', async (req, res) => {
     const { schoolId } = req.params;
-    const { authority, username, department } = req.body;
+    const { authority, username, password, department } = req.body;
 
     // Check authority
     if (authority !== 'ADMIN' && authority !== 'STAFF') {
@@ -657,10 +648,10 @@ app.post('/dashboard/student/:schoolId', async (req, res) => {
     }
 
     // Check required fields
-    if (!schoolId || !username || !department) {
+    if (!schoolId || !username || !password) {
         return res.status(400).json({
             success: false,
-            message: 'schoolId, name, and department are required'
+            message: 'schoolId, name, and password are required'
         });
     }
 
@@ -684,25 +675,35 @@ app.post('/dashboard/student/:schoolId', async (req, res) => {
             });
         }
 
+        // Check if user already exists
+        const existingUser = await db.collection('users').findOne({ schoolId: schoolId });
+        if (existingUser) {
+            return res.status(409).json({
+                success: false,
+                message: 'User with this School ID already exists'
+            });
+        }
+
         // Create new student record
         const newStudent = {
             name:               name,
             schoolId:           schoolId,
-            department:         department,
+            department:         department || 'General',
             age:                null,
             location:           null,
             email:              null,
             emergencyContact:   null,
+            newuser:            true,
             medicalHistory:     null,
             allergies:          null
         };
 
         // Create new User
-        const newPassword = `${department}${schoolId}`
         const newUser = {
-            username: schoolId,
-            password: await bcrypt.hash(newPassword, 10),
-            authority: 'STUDENT'
+            username: name,
+            password: await bcrypt.hash(password, 10),
+            authority: 'STUDENT',
+            schoolId: schoolId
         };
 
         await db.collection('students').insertOne(newStudent);
@@ -725,7 +726,7 @@ app.post('/dashboard/student/:schoolId', async (req, res) => {
 // Create account for staffs - ADMIN only
 app.post('/dashboard/staff/:schoolId', async (req, res) => {
     const { schoolId } = req.params;
-    const { authority, username, department } = req.body;
+    const { authority, username, password, department } = req.body;
 
     // Check authority
     if (authority !== 'ADMIN') {
@@ -736,10 +737,10 @@ app.post('/dashboard/staff/:schoolId', async (req, res) => {
     }
 
     // Check required fields
-    if (!schoolId || !username || !department) {
+    if (!schoolId || !username || !password) {
         return res.status(400).json({
             success: false,
-            message: 'schoolId, name, and department are required'
+            message: 'schoolId, name, and password are required'
         });
     }
 
@@ -763,23 +764,33 @@ app.post('/dashboard/staff/:schoolId', async (req, res) => {
             });
         }
 
+        // Check if user already exists
+        const existingUser = await db.collection('users').findOne({ username: schoolId });
+        if (existingUser) {
+            return res.status(409).json({
+                success: false,
+                message: 'User with this School ID already exists'
+            });
+        }
+
         // Create new staff record
         const newStaff = {
             name:               name,
             schoolId:           schoolId,
-            department:         department,
+            department:         department || 'General',
             age:                null,
             location:           null,
             email:              null,
             contact:            null,
+            newuser:            true,
         };
 
         // Create new User
-        const newPassword = `${department}${schoolId}`
         const newUser = {
-            username: schoolId,
-            password: await bcrypt.hash(newPassword, 10),
-            authority: 'STAFF'
+            username: name,
+            password: await bcrypt.hash(password, 10),
+            authority: 'STAFF',
+            schoolId: schoolId
         };
 
         await db.collection('staffs').insertOne(newStaff);
@@ -795,6 +806,170 @@ app.post('/dashboard/staff/:schoolId', async (req, res) => {
         return res.status(500).json({
             success: false,
             message: 'Database Error: ' + (err.message || err)
+        });
+    }
+});
+
+// Update student profile data
+app.post('/student/:schoolId/update-profile', async (req, res) => {
+    const { schoolId } = req.params;
+    const { age, location, email, emergencyContact, medicalHistory, allergies } = req.body;
+
+    if (!db) {
+        return res.status(503).json({ 
+            success: false, 
+            message: 'Database not connected' 
+        });
+    }
+
+    try {
+        const updateData = {};
+        if (age !== undefined && age !== null) updateData.age = age;
+        if (location !== undefined && location !== null) updateData.location = location;
+        if (email !== undefined && email !== null) updateData.email = email;
+        if (emergencyContact !== undefined && emergencyContact !== null) updateData.emergencyContact = emergencyContact;
+        if (medicalHistory !== undefined && medicalHistory !== null) updateData.medicalHistory = medicalHistory;
+        if (allergies !== undefined && allergies !== null) updateData.allergies = allergies;
+
+        const result = await db.collection('students').updateOne(
+            { schoolId: schoolId },
+            { $set: { ...updateData, newuser: false } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Student not found'
+            });
+        }
+
+        io.emit('refresh-page');
+        res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully'
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Database error: ' + (err.message || err)
+        });
+    }
+});
+
+// Update staff profile data
+app.post('/staff/:schoolId/update-profile', async (req, res) => {
+    const { schoolId } = req.params;
+    const { age, location, email, contact } = req.body;
+
+    if (!db) {
+        return res.status(503).json({ 
+            success: false, 
+            message: 'Database not connected' 
+        });
+    }
+
+    try {
+        const updateData = {};
+        if (age !== undefined && age !== null) updateData.age = age;
+        if (location !== undefined && location !== null) updateData.location = location;
+        if (email !== undefined && email !== null) updateData.email = email;
+        if (contact !== undefined && contact !== null) updateData.contact = contact;
+
+        const result = await db.collection('staffs').updateOne(
+            { schoolId: schoolId },
+            { $set: { ...updateData, newuser: false } }
+        );
+
+        if (result.matchedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+
+        io.emit('refresh-page');
+        res.status(200).json({
+            success: true,
+            message: 'Profile updated successfully'
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Database error: ' + (err.message || err)
+        });
+    }
+});
+
+// Get staff data
+app.get('/staff/:schoolId', async (req, res) => {
+    const { schoolId } = req.params;
+
+    if (!db) {
+        return res.status(503).json({ 
+            success: false, 
+            message: 'Database not connected' 
+        });
+    }
+
+    try {
+        const staff = await db.collection('staffs').findOne({ schoolId: schoolId });
+
+        if (!staff) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+
+        res.status(200).json({
+            success: true,
+            staff: staff
+        });
+    }
+
+    catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Database error: ' + (err.message || err)
+        });
+    }
+});
+
+// Get student alarm records
+app.get('/student/:schoolId/alarms', async (req, res) => {
+    const { schoolId } = req.params;
+
+    if (!db) {
+        return res.status(503).json({ 
+            success: false, 
+            message: 'Database not connected' 
+        });
+    }
+
+    try {
+        const alarms = await db.collection('alarms')
+            .find({ schoolId: schoolId })
+            .sort({ createdAt: -1 })
+            .toArray();
+
+        res.status(200).json({
+            success: true,
+            alarms: alarms.map(alarm => ({
+                id: alarm._id,
+                schoolId: alarm.schoolId,
+                emergency: alarm.emergency,
+                message: alarm.message,
+                status: alarm.status,
+                createdAt: alarm.createdAt,
+                updatedAt: alarm.updatedAt,
+                resolvedAt: alarm.resolvedAt,
+                lastAction: alarm.lastAction
+            }))
+        });
+    } catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Database error: ' + (err.message || err)
         });
     }
 });
@@ -910,7 +1085,7 @@ app.post('/alarm/:alarmId/false', async (req, res) => {
 
 // Delete alarm by ID - ADMIN only (Note: only do if needed, as it removes data permanently)
 app.delete('/alarm/:alarmId', async (req, res) => {
-    const { authority, deleteCode } = req.body;
+    const { authority } = req.body;
     const { alarmId } = req.params;
 
     // Check authority
@@ -918,12 +1093,6 @@ app.delete('/alarm/:alarmId', async (req, res) => {
         return res.status(403).json({
             success: false,
             message: 'Unauthorized: Only ADMIN can delete alarms'
-        });
-    }
-    if (deleteCode !== process.env.DELETE_CODE) {
-        return res.status(403).json({
-            success: false,
-            message: 'Unauthorized: Invalid delete code'
         });
     }
 
@@ -1019,22 +1188,16 @@ app.post('/user/change-password', async (req, res) => {
     }
 });
 
-// Delete account for students and staff - ADMIN or STAFF only
-app.delete('/user/:username', async (req, res) => {
-    const { authority, deleteCode } = req.body;
-    const { username } = req.params;
+// Delete student by schoolId - ADMIN only
+app.delete('/student/:schoolId', async (req, res) => {
+    const { authority } = req.body;
+    const { schoolId } = req.params;
 
-    if ( authority != 'ADMIN' && authority != 'STAFF') {
+    // Check authority
+    if (authority !== 'ADMIN') {
         return res.status(403).json({
             success: false,
-            message: 'Unauthorized: Only ADMIN or STAFF can delete users'
-        });
-    }
-
-    if ( deleteCode !== process.env.DELETE_CODE ) {
-        return res.status(403).json({
-            success: false,
-            message: 'Unauthorized: Invalid delete code'
+            message: 'Unauthorized: Only ADMIN can delete students'
         });
     }
 
@@ -1045,53 +1208,74 @@ app.delete('/user/:username', async (req, res) => {
         });
     }
 
-    if ( !username ) {
-        return res.status(400).json({
-            success: false,
-            message: 'Username is required'
-        });
-    }
-
     try {
-        const user = await db.collection('users').findOne({ username: username });
+        // Delete from students collection
+        const studentResult = await db.collection('students').deleteOne({ schoolId: schoolId });
+        
+        // Delete user account
+        const userResult = await db.collection('users').deleteOne({ username: schoolId });
 
-        if (!user) {
+        if (studentResult.deletedCount === 0 && userResult.deletedCount === 0) {
             return res.status(404).json({
                 success: false,
-                message: 'User not found'
-            });
-        }
-
-        if (user.authority === 'ADMIN') {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized: Cannot delete ADMIN accounts'
-            });
-        }
-
-        if (user.authority === 'STAFF' && authority !== 'ADMIN') {
-            return res.status(403).json({
-                success: false,
-                message: 'Unauthorized: Only ADMIN can delete STAFF accounts'
-            });
-        }
-
-        const result = await db.collection('users').deleteOne({ username: username });
-
-        if (result.deletedCount === 0) {
-            return res.status(404).json({
-                success: false,
-                message: 'User not found'
+                message: 'Student not found'
             });
         }
 
         io.emit('refresh-page');
         res.status(200).json({
             success: true,
-            message: 'User deleted successfully'
+            message: 'Student deleted successfully'
+        });
+    }
+    catch (err) {
+        res.status(500).json({
+            success: false,
+            message: 'Database error: ' + (err.message || err)
+        });
+    }
+});
+
+// Delete staff by schoolId - ADMIN only
+app.delete('/staff/:schoolId', async (req, res) => {
+    const { authority } = req.body;
+    const { schoolId } = req.params;
+
+    // Check authority
+    if (authority !== 'ADMIN') {
+        return res.status(403).json({
+            success: false,
+            message: 'Unauthorized: Only ADMIN can delete staff'
         });
     }
 
+    if (!db) {
+        return res.status(503).json({ 
+            success: false, 
+            message: 'Database not connected' 
+        });
+    }
+
+    try {
+        // Delete from staffs collection
+        const staffResult = await db.collection('staffs').deleteOne({ schoolId: schoolId });
+        
+        // Delete user account
+        const userResult = await db.collection('users').deleteOne({ username: schoolId });
+
+        if (staffResult.deletedCount === 0 && userResult.deletedCount === 0) {
+            return res.status(404).json({
+                success: false,
+                message: 'Staff not found'
+            });
+        }
+
+        io.emit('refresh-page');
+        res.status(200).json({
+            success: true,
+            message: 'Staff deleted successfully'
+        });
+    }
     catch (err) {
         res.status(500).json({
             success: false,
@@ -1109,18 +1293,26 @@ const server = ioServer.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
     console.log(`\nAPI Endpoints:`);
     console.log(`   POST    /login              - Login with accountName and password`);
-    console.log(`   POST    /alarm              - Create or update alarm with schoolId`);
-    console.log(`   GET     /alarm/:schoolId    - Get specific student alarm`);
-    console.log(`   GET     /alarms             - Get all active alarms`);
-    console.log(`   GET     /dashboard/student/:schoolId    - Student dashboard`);
-    console.log(`   GET     /dashboard/staff/:department    - Staff dashboard with students and alarms in their department`);
-    console.log(`   GET     /dashboard/admin                - Admin dashboard with all students and alarms`);
-    console.log(`   POST    /dashboard/student/:schoolId    - Create student account (ADMIN or STAFF only)`);
-    console.log(`   POST    /dashboard/staff/:schoolId      - Create staff account (ADMIN only)`);
-    console.log(`   POST    /alarm/:alarmId/resolve         - Resolve alarm by ID (ADMIN or STAFF only)`);
-    console.log(`   POST    /alarm/:alarmId/false           - Mark alarm as false by ID (STUDENT only)`);
-    console.log(`   DELETE  /alarm/:alarmId                 - Delete alarm by ID (ADMIN only)`);
-    console.log(`   GET     /health                         - Health check\n`);
+    console.log(`   GET     /user/:username     - Get Data based on username`);
+    console.log(`   POST    /alarm/:schoolId    - Create or update alarm with schoolId`);
+    console.log(`   GET     /alarm/:alarmId     - Get alarm data by alarm ID`);
+    console.log(`   GET     /alarms/all         - Get all alarms`);
+    console.log(`   GET     /dashboard/student/:schoolId - Get student dashboard data`);
+    console.log(`   GET     /dashboard/staff/:department - Get staff dashboard data`);
+    console.log(`   GET     /dashboard/admin    - Get admin dashboard data`);
+    console.log(`   POST    /dashboard/student/:schoolId - Create student account (ADMIN/STAFF only)`);
+    console.log(`   POST    /dashboard/staff/:schoolId   - Create staff account (ADMIN only)`);
+    console.log(`   POST    /student/:schoolId/update-profile - Update student profile`);
+    console.log(`   POST    /staff/:schoolId/update-profile   - Update staff profile`);
+    console.log(`   GET     /staff/:schoolId    - Get staff data`);
+    console.log(`   GET     /student/:schoolId/alarms - Get student alarm records`);
+    console.log(`   POST    /alarm/:alarmId/resolve - Resolve alarm (ADMIN/STAFF only)`);
+    console.log(`   POST    /alarm/:alarmId/false   - Mark alarm as false (STUDENT only)`);
+    console.log(`   DELETE  /alarm/:alarmId     - Delete alarm (ADMIN only)`);
+    console.log(`   POST    /user/change-password - Change user password`);
+    console.log(`   DELETE  /student/:schoolId  - Delete student (ADMIN only)`);
+    console.log(`   DELETE  /staff/:schoolId    - Delete staff (ADMIN only)`);
+    console.log(`   GET     /health             - Health check endpoint\n`);
 });
 
 // Attempt to connect to MongoDB in background

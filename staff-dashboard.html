@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Staff Dashboard - LIFELINE</title>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="brand-name">L.I.F.E.L.I.N.E.</div>
+        <div class="user-controls">
+            <span id="welcomeMsg" style="font-size: 14px; opacity: 0.9;"></span>
+            <button id="logoutBtn">Logout</button>
+        </div>
+    </nav>
+
+    <div class="dashboard-container">
+        <div id="tabNavigation" class="tab-navigation"></div>
+        <div id="dashboardContent"></div>
+        <div id="dashboardError" style="color: red;"></div>
+    </div>
+
+    <script src="dashboard-shared.js"></script>
+    <script>
+        let staffData = {};
+
+        async function loadStaffDashboard() {
+            try {
+                const userResponse = await fetch(`/user/${username}`);
+                const userData = await userResponse.json();
+                if (userData.success && userData.user.department) {
+                    // Get schoolId from user data (now available after migration)
+                    const schoolId = userData.user.schoolId || localStorage.getItem('schoolId');
+                    
+                    if (!schoolId) {
+                        throw new Error('SchoolId not found for user');
+                    }
+                    
+                    // Get current staff member's details
+                    const staffResponse = await fetch(`/staff/${schoolId}`);
+                    const fetchedStaffData = await staffResponse.json();
+                    
+                    if (fetchedStaffData.success) {
+                        // Get dashboard data for the department
+                        const dashboardResponse = await fetch(`/dashboard/staff/${userData.user.department}`);
+                        const dashboardData = await dashboardResponse.json();
+                        
+                        if (dashboardData.success) {
+                            // Merge staff data with dashboard data
+                            dashboardData.staff = fetchedStaffData.staff;
+                            
+                            const staff = dashboardData.staff || {};
+                            // If newuser flag present, force completion
+                            if (staff.newuser) {
+                                showCompletionForm('staff', dashboardData);
+                                return;
+                            }
+                            const isComplete = staff.email && staff.location && staff.contact && 
+                                             String(staff.email).trim() !== '' && 
+                                             String(staff.location).trim() !== '' && 
+                                             String(staff.contact).trim() !== '';
+                            if (!isComplete) {
+                                showCompletionForm('staff', dashboardData);
+                                return;
+                            }
+                            staffData = dashboardData;
+                            setupStaffTabs();
+                        }
+                        else throw new Error(dashboardData.message);
+                    }
+                    else throw new Error(staffData.message);
+                }
+            } catch (err) {
+                console.error('Error:', err);
+                document.getElementById('dashboardError').textContent = 'Error loading dashboard: ' + err.message;
+            }
+        }
+
+        function setupStaffTabs() {
+            const tabs = ['overview', 'alarms', 'students', 'manage'];
+            let tabHtml = '<div class="tabs">';
+            tabs.forEach(tab => {
+                const active = currentTab === tab || (currentTab === 'overview' && tab === 'overview') ? 'active' : '';
+                tabHtml += `<button class="tab-btn ${active}" onclick="switchTab('${tab}')">${tab.charAt(0).toUpperCase() + tab.slice(1)}</button>`;
+            });
+            tabHtml += '</div>';
+            document.getElementById('tabNavigation').innerHTML = tabHtml;
+            currentTab = 'overview';
+            
+            showStaffTab('overview');
+        }
+
+        function showStaffTab(tab) {
+            let html = '';
+            
+            if (tab === 'overview') {
+                html = `<h2>${staffData.department} Department - Overview</h2>`;
+                html += `<div class="stats-grid">
+                            <div class="stat-card"><span>Total Students</span><strong>${staffData.totalStudents}</strong></div>
+                            <div class="stat-card"><span>Active Alarms</span><strong>${staffData.ongoingAlarmCount}</strong></div>
+                         </div>`;
+
+                // Ongoing Alarms
+                html += '<h3>Ongoing Alarms</h3>';
+                html += '<div class="table-container"><table><thead><tr><th>School ID</th><th>Type</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead><tbody>';
+                if (staffData.ongoingAlarms && staffData.ongoingAlarms.length > 0) {
+                    staffData.ongoingAlarms.forEach(alarm => {
+                        const createdDate = new Date(alarm.createdAt).toLocaleString();
+                        const alarmId = alarm.id || alarm._id;
+                        html += `<tr><td>${alarm.schoolId}</td><td>${getEmergencyTypeDisplay(alarm.emergency)}</td><td><span style="color:red; font-weight:bold;">${alarm.status}</span></td><td>${createdDate}</td><td><button class="btn-small btn-manage" onclick="resolveAlarm('${alarmId}')">Resolve</button></td></tr>`;
+                        if (alarm.message){
+                            html += `<tr><td>Message: ${alarm.message || ''}</td><td colspan="4"></td></tr>`;
+                        }
+                    });
+                } else { html += '<tr><td colspan="5">No active alarms in this department.</td></tr>'; }
+                html += '</tbody></table></div>';
+                
+                // Staff in Department
+                html += '<h3>Staff in Department</h3>';
+                html += '<div class="table-container"><table><thead><tr><th>Name</th><th>ID</th><th>Email</th><th>Contact</th></tr></thead><tbody>';
+                if (staffData.staffs && staffData.staffs.length > 0) {
+                    staffData.staffs.forEach(staff => {
+                        html += `<tr><td>${staff.name}</td><td>${staff.schoolId}</td><td>${staff.email || '-'}</td><td>${staff.contact || '-'}</td></tr>`;
+                    });
+                } else { html += '<tr><td colspan="4">No staff in this department.</td></tr>'; }
+                html += '</tbody></table></div>';
+            }
+            
+            else if (tab === 'alarms') {
+                html = `<h2>${staffData.department} Department - All Alarm Records</h2>`;
+                html += '<div class="table-container"><table><thead><tr><th>School ID</th><th>Emergency Level</th><th>Status</th><th>Created</th><th>Resolved</th><th>Actions</th></tr></thead><tbody>';
+                if (staffData.alarms && staffData.alarms.length > 0) {
+                    staffData.alarms.forEach(alarm => {
+                        const createdDate = new Date(alarm.createdAt).toLocaleString();
+                        const resolvedDate = alarm.resolvedAt ? new Date(alarm.resolvedAt).toLocaleString() : '-';
+                        const alarmId = alarm.id || alarm._id;
+                        html += `<tr>
+                                    <td>${alarm.schoolId}</td>
+                                    <td>${getEmergencyTypeDisplay(alarm.emergency)}</td>
+                                    <td>${alarm.status}</td>
+                                    <td>${createdDate}</td>
+                                    <td>${resolvedDate}</td>
+                                    <td>
+                                        <span style="color: #999; font-size: 12px;">View Only</span>
+                                    </td>
+                                </tr>`;
+                        if (alarm.message){
+                            html += `<tr><td></td><td>Message: ${alarm.message}</td><td colspan="4"></td></tr>`;
+                        }
+                    });
+                } else { html += '<tr><td colspan="6">No alarm records found.</td></tr>'; }
+                html += '</tbody></table></div>';
+            }
+            
+            else if (tab === 'manage') {
+                html = '<h2>Manage Account</h2>';
+                
+                // Profile Update Form
+                html += '<h3>Update Profile</h3>';
+                html += '<div class="form-card" style="max-width: 500px;">';
+                html += '<form id="updateStaffProfileForm" onsubmit="updateStaffProfile(event)">';
+                html += '<label>Email:</label>';
+                html += `<input type="email" id="staffEmail" placeholder="Email" value="${staffData.staff?.email || ''}" required />`;
+                html += '<label>Location/Office:</label>';
+                html += `<input type="text" id="staffLocation" placeholder="Location/Office" value="${staffData.staff?.location || ''}" required />`;
+                html += '<label>Contact Number:</label>';
+                html += `<input type="text" id="staffContact" placeholder="Contact Number" value="${staffData.staff?.contact || ''}" required />`;
+                html += '<label>Age:</label>';
+                html += `<input type="number" id="staffAge" placeholder="Age" value="${staffData.staff?.age || ''}" />`;
+                html += '<button type="submit" class="btn-create">Update Profile</button>';
+                html += '</form>';
+                html += '</div>';
+                html += '<div id="staffProfileMessage" style="margin-top: 10px; padding: 10px; display: none; border-radius: 5px;"></div>';
+
+                // Password Change Form
+                html += '<h3 style="margin-top: 30px;">Change Password</h3>';
+                html += '<div class="form-card" style="max-width: 500px;">';
+                html += '<form id="changeStaffPasswordForm" onsubmit="changeStaffPassword(event)">';
+                html += '<label>Old Password:</label>';
+                html += '<input type="password" id="staffOldPassword" placeholder="Old Password" required />';
+                html += '<label>New Password:</label>';
+                html += '<input type="password" id="staffNewPassword" placeholder="New Password" required />';
+                html += '<label>Confirm Password:</label>';
+                html += '<input type="password" id="staffConfirmPassword" placeholder="Confirm Password" required />';
+                html += '<button type="submit" class="btn-create">Change Password</button>';
+                html += '</form>';
+                html += '</div>';
+                html += '<div id="staffPasswordMessage" style="margin-top: 10px; padding: 10px; display: none; border-radius: 5px;"></div>';
+            }
+            
+            else if (tab === 'students') {
+                html = `<h2>${staffData.department} Department - Students</h2>`;
+                html += '<div style="display: flex; gap: 30px; align-items: flex-start;">';
+                
+                // Left side - Create Student Form
+                html += '<div style="flex: 0 0 400px;">';
+                html += '<h3>Create New Student Account</h3>';
+                html += '<div class="form-card">';
+                html += '<form id="createStudentForm" onsubmit="createAccount(event, \'student\')">';
+                html += '<input type="text" id="studentName" placeholder="Full Name" required />';
+                html += '<input type="text" id="studentSchoolId" placeholder="School ID" required />';
+                html += '<input type="password" id="studentPassword" placeholder="Password" required />';
+                html += '<input type="text" id="studentDept" placeholder="Department (optional)" />';
+                html += '<button type="submit" class="btn-create">Create Student</button>';
+                html += '</form>';
+                html += '<div id="createMessage" style="margin-top: 10px; padding: 10px; display: none; border-radius: 5px;"></div>';
+                html += '</div>';
+                html += '</div>';
+                
+                // Right side - Students List
+                html += '<div style="flex: 1;">';
+                html += '<h3>Students List</h3>';
+                html += '<div class="table-container"><table><thead><tr><th>Name</th><th>ID</th><th>Has Alarm?</th><th>Actions</th></tr></thead><tbody>';
+                if (staffData.students && staffData.students.length > 0) {
+                    staffData.students.forEach(student => {
+                        const alarmStatus = student.ongoingAlarm ? '<span style="color:red">YES</span>' : '<span style="color:green">No</span>';
+                        html += `<tr><td>${student.name}</td><td>${student.schoolId}</td><td>${alarmStatus}</td><td><button class="btn-small btn-manage" onclick="showStudentQR('${student.schoolId}')">QR</button></td></tr>`;
+                    });
+                } else { html += '<tr><td colspan="4">No students found.</td></tr>'; }
+                html += '</tbody></table></div>';
+                html += '</div>';
+                html += '</div>';
+            }
+            
+            document.getElementById('dashboardContent').innerHTML = html;
+        }
+
+        async function updateStaffProfile(event) {
+            event.preventDefault();
+            const age = document.getElementById('staffAge').value;
+            const email = document.getElementById('staffEmail').value;
+            const location = document.getElementById('staffLocation').value;
+            const contact = document.getElementById('staffContact').value;
+
+            try {
+                const schoolId = staffData.staff.schoolId;
+                const response = await fetch(`/staff/${schoolId}/update-profile`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        age,
+                        location,
+                        email,
+                        contact
+                    })
+                });
+
+                if (!response.ok) throw new Error('Update failed');
+
+                showStaffProfileMessage('Profile updated successfully!', 'success');
+                staffData.staff = { ...staffData.staff, email, location, contact };
+                
+            } catch (error) {
+                console.error('Update error:', error);
+                showStaffProfileMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        async function changeStaffPassword(event) {
+            event.preventDefault();
+
+            const oldPassword = document.getElementById('staffOldPassword').value;
+            const newPassword = document.getElementById('staffNewPassword').value;
+            const confirmPassword = document.getElementById('staffConfirmPassword').value;
+
+            if (newPassword !== confirmPassword) {
+                showStaffPasswordMessage('Passwords do not match!', 'error');
+                return;
+            }
+
+            try {
+                const response = await fetch('/user/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        username: username,
+                        oldPassword,
+                        newPassword
+                    })
+                });
+
+                if (!response.ok) throw new Error('Password change failed');
+
+                showStaffPasswordMessage('Password changed successfully!', 'success');
+                document.getElementById('changeStaffPasswordForm').reset();
+                
+            } catch (error) {
+                console.error('Password change error:', error);
+                showStaffPasswordMessage('Error: ' + error.message, 'error');
+            }
+        }
+
+        function showStaffProfileMessage(message, type) {
+            const msgEl = document.getElementById('staffProfileMessage');
+            msgEl.textContent = message;
+            msgEl.style.display = 'block';
+            msgEl.style.backgroundColor = type === 'error' ? '#fee' : '#efe';
+            msgEl.style.color = type === 'error' ? '#c33' : '#3c3';
+            msgEl.style.borderLeft = `4px solid ${type === 'error' ? '#c33' : '#3c3'}`;
+        }
+
+        function showStaffPasswordMessage(message, type) {
+            const msgEl = document.getElementById('staffPasswordMessage');
+            msgEl.textContent = message;
+            msgEl.style.display = 'block';
+            msgEl.style.backgroundColor = type === 'error' ? '#fee' : '#efe';
+            msgEl.style.color = type === 'error' ? '#c33' : '#3c3';
+            msgEl.style.borderLeft = `4px solid ${type === 'error' ? '#c33' : '#3c3'}`;
+        }
+
+        async function createAccount(event, type) {
+            event.preventDefault();
+            
+            let name, schoolId, password, department;
+            
+            if (type === 'student') {
+                name = document.getElementById('studentName').value;
+                schoolId = document.getElementById('studentSchoolId').value;
+                password = document.getElementById('studentPassword').value;
+                department = document.getElementById('studentDept').value || staffData.department || 'General';
+            }
+
+            const endpoint = `/dashboard/student/${schoolId}`;
+            
+            try {
+                const response = await fetch(endpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        username: name,
+                        password: password,
+                        authority: 'STAFF',
+                        department: department
+                    })
+                });
+
+                const data = await response.json();
+                const messageDiv = document.getElementById('createMessage');
+
+                if (data.success) {
+                    messageDiv.style.backgroundColor = '#d4edda';
+                    messageDiv.style.color = '#155724';
+                    messageDiv.textContent = `✓ ${data.message}`;
+                    messageDiv.style.display = 'block';
+                    
+                    document.getElementById('createStudentForm').reset();
+                    
+                    setTimeout(loadStaffDashboard, 2000);
+                } else {
+                    messageDiv.style.backgroundColor = '#f8d7da';
+                    messageDiv.style.color = '#721c24';
+                    messageDiv.textContent = `✗ ${data.message}`;
+                    messageDiv.style.display = 'block';
+                }
+            } catch (err) {
+                const messageDiv = document.getElementById('createMessage');
+                messageDiv.style.backgroundColor = '#f8d7da';
+                messageDiv.style.color = '#721c24';
+                messageDiv.textContent = `✗ Error: ${err.message}`;
+                messageDiv.style.display = 'block';
+            }
+        }
+
+        function switchTab(tabName) {
+            currentTab = tabName;
+            
+            // Update active button
+            const buttons = document.querySelectorAll('.tab-btn');
+            buttons.forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            showStaffTab(tabName);
+        }
+
+        async function resolveAlarm(alarmId) {
+            if (confirm('Are you sure you want to resolve this alarm?')) {
+                try {
+                    const response = await fetch(`/alarm/${alarmId}/resolve`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            authority: authority
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('Alarm resolved successfully!');
+                        loadStaffDashboard();
+                    } else {
+                        alert('Failed to resolve alarm: ' + data.message);
+                    }
+                } catch (err) {
+                    alert('Error resolving alarm: ' + err.message);
+                }
+            }
+        }
+
+        function showStudentQR(schoolId) {
+            const qrUrl = `https://lifeline-app-part-2.onrender.com/alarm.html?schoolId=${schoolId}`;
+            const qrHtml = `
+                <div style="padding: 20px; text-align: center;">
+                    <h3>Student QR Code</h3>
+                    <p><strong>School ID:</strong> ${schoolId}</p>
+                    <div id="qrContainer" style="margin: 20px 0;"></div>
+                    <p style="font-size: 12px; color: #666; margin-top: 10px; word-break: break-all;">
+                        ${qrUrl}
+                    </p>
+                    <button class="btn-create" onclick="this.parentElement.parentElement.remove()">Close</button>
+                </div>
+            `;
+            
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 1000;';
+            modal.innerHTML = `<div style="background: white; padding: 30px; border-radius: 10px; max-width: 500px; width: 90%;">${qrHtml}</div>`;
+            document.body.appendChild(modal);
+            
+            setTimeout(() => generateQRCode(qrUrl, 'qrContainer'), 100);
+        }
+
+        window.addEventListener('load', loadStaffDashboard);
+    </script>
+</body>
+</html>
