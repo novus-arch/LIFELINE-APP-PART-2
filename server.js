@@ -246,6 +246,29 @@ app.post('/alarm/:schoolId', async (req, res) => {
             });
         }
 
+        try {
+            const notificationBody = alarm.message
+                ? `${alarm.schoolId}: ${alarm.message}`
+                : `${alarm.schoolId}: Emergency in progress`;
+
+            await fetch('https://onesignal.com/api/v1/notifications', {
+                method: 'POST',
+                headers: {
+                'Content-Type': 'application/json;charset=utf-8',
+                'Authorization': `Basic ${process.env.REST_API_KEY}`
+                },
+                body: JSON.stringify({
+                app_id: '4f0db66a-3519-4750-866b-9d53f61983c2',
+                included_segments: ['Subscribed Users'], // sends to all subscribed staff
+                headings: { "en": "Emergency Alarm" },
+                contents: { "en": notificationBody },
+                data: { alarmId: alarm._id.toString(), updatedAt: alarm.updatedAt }
+                })
+            });
+            } catch (notifErr) {
+                console.error('Error sending OneSignal notification:', notifErr);
+            }
+
         // return the alarm info
         io.emit('refresh-page');
         res.status(200).json({
