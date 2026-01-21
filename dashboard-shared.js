@@ -29,14 +29,28 @@ function showAlarmNotification(alarms) {
 function sendOneSignalAlarm(alarm) {
     const alarmId = alarm.id || alarm._id;
 
-    OneSignal.sendSelfNotification(
-        "Emergency Alert",
-        alarm.message 
-            ? `${alarm.schoolId}: ${alarm.message}` 
-            : `${alarm.schoolId}: Emergency in progress`,
-        "https://lifeline-web-app.onrender.com",
-        { tag: `alarm-${alarmId}-${alarm.updatedAt || Date.now()}` }
-    );
+    window.OneSignalDeferred = window.OneSignalDeferred || [];
+    OneSignalDeferred.push(async function(OneSignal) {
+        try {
+            await OneSignal.init({
+                appId: "4f0db66a-3519-4750-866b-9d53f61983c2",
+                safari_web_id: "web.onesignal.auto.3cda868c-95ba-4dc0-a9c6-5ad5b099bc53",
+                notifyButton: { enable: true },
+            });
+
+            // Send the notification to the current user/device
+            OneSignal.sendSelfNotification(
+                "Emergency Alert",
+                alarm.message 
+                    ? `${alarm.schoolId}: ${alarm.message}` 
+                    : `${alarm.schoolId}: Emergency in progress`,
+                "https://lifeline-web-app.onrender.com", // optional URL
+                { tag: `alarm-${alarmId}-${alarm.updatedAt || Date.now()}` }
+            );
+        } catch (err) {
+            console.error("OneSignal notification error:", err);
+        }
+    });
 }
 
 // Emergency type display helper
