@@ -497,6 +497,7 @@ app.get('/dashboard/staff/:department', async (req, res) => {
             })),
             ongoingAlarms:      ongoingAlarms.map(alarm => ({
                 id:             alarm._id,
+                student:        students.find(s => s.schoolId === alarm.schoolId) || null,
                 schoolId:       alarm.schoolId,
                 emergency:      alarm.emergency,
                 message:        alarm.message,
@@ -603,6 +604,7 @@ app.get('/dashboard/admin', async (req, res) => {
             })),
             ongoingAlarms:      ongoingAlarms.map(alarm => ({
                 id:             alarm._id,
+                student:        students.find(s => s.schoolId === alarm.schoolId) || null,
                 schoolId:       alarm.schoolId,
                 emergency:      alarm.emergency,
                 message:        alarm.message,

@@ -12,6 +12,33 @@ const username = localStorage.getItem('username');
 const authority = localStorage.getItem('authority');
 let currentTab = 'overview';
 
+// Request notification permission on page load
+if ('Notification' in window) {
+    if (Notification.permission === 'default') {
+        Notification.requestPermission();
+    }
+}
+
+// Push notiication for alarms
+function showAlarmNotification(alarms) {
+    alarms.forEach(alarm => {
+        sendOneSignalAlarm(alarm);
+    });
+}
+
+function sendOneSignalAlarm(alarm) {
+    const alarmId = alarm.id || alarm._id;
+
+    OneSignal.sendSelfNotification(
+        "Emergency Alert",
+        alarm.message 
+            ? `${alarm.schoolId}: ${alarm.message}` 
+            : `${alarm.schoolId}: Emergency in progress`,
+        "https://lifeline-web-app.onrender.com",
+        { tag: `alarm-${alarmId}-${alarm.updatedAt || Date.now()}` }
+    );
+}
+
 // Emergency type display helper
 function getEmergencyTypeDisplay(typeNum) {
     const types = {

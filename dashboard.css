@@ -355,3 +355,32 @@ tr:hover {
     margin-top: 20px;
     text-align: center;
 }
+
+.alarms-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 15px;
+}
+
+.alarm-card {
+    width: 280px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.2);
+    padding: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.card-header {
+    display: flex;
+    justify-content: space-between;
+    font-weight: bold;
+}
+
+.card-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}

@@ -131,10 +131,14 @@
                 html += `<input type="text" id="profileContact" placeholder="Emergency Contact Name/Number" value="${studentData.student.emergencyContact || ''}" required />`;
                 html += '<label>Age:</label>';
                 html += `<input type="number" id="profileAge" placeholder="Age" value="${studentData.student.age || ''}" />`;
+                html += '<label>Medical Information (optional):</label>';
+                html += '<input type="text" id="profileMedicalConditions" placeholder="Medical Conditions (optional)" value="' + (studentData.student.medicalHistory || '') + '" />';
+                html += '<label>Allergies (optional):</label>';
+                html += '<input type="text" id="profileAllergies" placeholder="Allergies (optional)" value="' + (studentData.student.allergies || '') + '" />';
                 html += '<button type="submit" class="btn-create">Update Profile</button>';
                 html += '</form>';
                 html += '</div>';
-                html += '<div id="profileMessage" style="margin-top: 10px; padding: 10px; display: none; border-radius: 5px;"></div>';
+                html += '<div id="profileMessage" style="margin-top: 10px; padding: 10px; border-radius: 5px;"></div>';
 
                 // QR Code Section
                 html += '<h3 style="margin-top: 30px;">Your QR Code</h3>';
@@ -178,7 +182,7 @@
             buttons.forEach(btn => btn.classList.remove('active'));
             event.target.classList.add('active');
             
-            showAdminTab(tabName);
+            showStudentTab(tabName);
         }
 
         async function updateStudentProfile(event) {
@@ -188,6 +192,8 @@
             const location = document.getElementById('profileLocation').value;
             const emergencyContact = document.getElementById('profileContact').value;
             const age = document.getElementById('profileAge').value;
+            const medicalConditions = document.getElementById('profileMedicalConditions').value;
+            const allergies = document.getElementById('profileAllergies').value;
 
             try {
                 const schoolId = localStorage.getItem('schoolId');
@@ -198,7 +204,9 @@
                         email,
                         location,
                         emergencyContact,
-                        age: age || null
+                        age: age || null,
+                        medicalHistory: medicalConditions,
+                        allergies: allergies
                     })
                 });
 
