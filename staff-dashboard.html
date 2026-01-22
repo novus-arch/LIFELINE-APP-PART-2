@@ -17,6 +17,14 @@
                 enable: true,
             },
             });
+            
+            // Ask user for permission
+            OneSignal.showSlidedownPrompt(); 
+
+            // Optional: check if already subscribed
+            OneSignal.isPushNotificationsEnabled(function(isEnabled) {
+                console.log("Push enabled:", isEnabled);
+            });
         });
     </script>
 </head>

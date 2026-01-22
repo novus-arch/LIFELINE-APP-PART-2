@@ -19,11 +19,50 @@ io.on('connection', socket => {
   console.log('Client connected');
 });
 
+// For push notifications
+
+async function sendAlarmNotification(alarm) {
+    await db.collection('students').findOne({ schoolId: alarm.schoolId });
+
+    const response = await fetch('https://onesignal.com/api/v1/notifications', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Basic ${process.env.REST_API_KEY}`
+        },
+        body: JSON.stringify({
+            app_id: process.env.ONESIGNAL_APP_ID,
+
+            headings: { en: "Emergency Alarm" },
+
+            contents: {
+                en: 
+                `Alarm for student ${student.name} (${alarm.schoolId}):
+                Location: ${student.location || 'Not provided'}
+                Emergency Level: Level ${alarm.emergency || 0}
+                Message:
+                ${alarm.message || 'Ongoing emergency'}`
+            },
+
+            data: {
+                alarmId: alarm._id.toString(),
+                updatedAt: alarm.updatedAt
+            },
+
+            included_segments: ["All"]
+        })
+    });
+
+    const data = await response.json();
+    console.log("OneSignal push sent:", data);
+}
+
 // For password hashing
 const bcrypt = require('bcrypt');
 
 //For Database connection
 const { MongoClient, ObjectId } = require('mongodb');
+const { send } = require('process');
 const mongoUrl = process.env.MONGODB_URI;
 const dbName = 'school_alarm';
 let db;
@@ -246,28 +285,7 @@ app.post('/alarm/:schoolId', async (req, res) => {
             });
         }
 
-        try {
-            const notificationBody = alarm.message
-                ? `${alarm.schoolId}: ${alarm.message}`
-                : `${alarm.schoolId}: Emergency in progress`;
-
-            await fetch('https://onesignal.com/api/v1/notifications', {
-                method: 'POST',
-                headers: {
-                'Content-Type': 'application/json;charset=utf-8',
-                'Authorization': `Basic ${process.env.REST_API_KEY}`
-                },
-                body: JSON.stringify({
-                app_id: '4f0db66a-3519-4750-866b-9d53f61983c2',
-                included_segments: ['Subscribed Users'], // sends to all subscribed staff
-                headings: { "en": "Emergency Alarm" },
-                contents: { "en": notificationBody },
-                data: { alarmId: alarm._id.toString(), updatedAt: alarm.updatedAt }
-                })
-            });
-            } catch (notifErr) {
-                console.error('Error sending OneSignal notification:', notifErr);
-            }
+        sendAlarmNotification(alarm);
 
         // return the alarm info
         io.emit('refresh-page');
