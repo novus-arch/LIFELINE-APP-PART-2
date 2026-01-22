@@ -37,11 +37,11 @@ async function sendAlarmNotification(alarm) {
 
             contents: {
                 en: 
-                `Alarm for student ${student.name} (${alarm.schoolId}):
-                Location: ${student.location || 'Not provided'}
-                Emergency Level: Level ${alarm.emergency || 0}
-                Message:
-                ${alarm.message || 'Ongoing emergency'}`
+`Alarm for student ${student.name} (${alarm.schoolId}):
+Location: ${student.location || 'Not provided'}
+Emergency Level: Level ${alarm.emergency || 0}
+Message:
+${alarm.message || 'Ongoing emergency'}`
             },
 
             data: {
