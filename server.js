@@ -22,7 +22,7 @@ io.on('connection', socket => {
 // For push notifications
 
 async function sendAlarmNotification(alarm) {
-    await db.collection('students').findOne({ schoolId: alarm.schoolId });
+    const student = await db.collection('students').findOne({ schoolId: alarm.schoolId });
 
     const response = await fetch('https://onesignal.com/api/v1/notifications', {
         method: 'POST',
