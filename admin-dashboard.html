@@ -103,7 +103,7 @@
                         html += `
                         <div class="alarm-card">
                             <div class="card-header">
-                                <span class="school-id">${alarm.schoolId}</span>
+                                <span class="school-id">${alarm.schoolId}&nbsp;</span>
                                 <span class="emergency-type">${getEmergencyTypeDisplay(alarm.emergency)}</span>
                                 <span class="status" style="color:red;font-weight:bold;">${alarm.status}</span>
                             </div>
@@ -408,7 +408,7 @@
                     <p style="font-size: 12px; color: #666; margin-top: 10px; word-break: break-all;">
                         ${qrUrl}
                     </p>
-                    <button class="btn-create" onclick="this.parentElement.parentElement.remove()">Close</button>
+                    <button class="btn-create" onclick="this.parentElement.parentElement.parentElement.remove()">Close</button>
                 </div>
             `;
             
