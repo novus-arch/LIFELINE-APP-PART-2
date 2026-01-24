@@ -115,6 +115,7 @@ app.post('/login', async (req, res) => {
     try{
         // get the user from database
         const user = await db.collection('users').findOne({ username: username });
+        
 
         if (!user) {
             return res.status(401).json({
@@ -743,7 +744,7 @@ app.post('/dashboard/student/:schoolId', async (req, res) => {
 
         // Create new User
         const newUser = {
-            username: name,
+            username: schoolId,
             password: await bcrypt.hash(password, 10),
             authority: 'STUDENT',
             schoolId: schoolId
